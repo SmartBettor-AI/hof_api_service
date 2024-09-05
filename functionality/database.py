@@ -1,18 +1,13 @@
 import pandas as pd
-import pickle
 from .user import User
-from .util import map_commence_time_game_id, decimal_to_american, american_to_decimal
+from .util import american_to_decimal
 import os
-import shutil
-from .result_updater import result_updater
 import numpy as np
-from flask import jsonify
 import math
 from datetime import datetime, timedelta
 import ast
 import stripe
 import logging
-import json
 from functionality.models import RememberToken
 from functionality.models import LoginInfo, MMAEvents, MMAOdds, MMAGames
 from sqlalchemy.orm.exc import NoResultFound
@@ -24,14 +19,13 @@ import secrets
 import hashlib
 import redis
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
-from sqlalchemy import desc, select, func
+from sqlalchemy import desc, func
 from sqlalchemy.orm import aliased
 import logging
 logging.basicConfig(level=logging.INFO)
 from decimal import Decimal
 logger = logging.getLogger(__name__)
 from pytz import timezone
-import swifter
 
 import psutil
 process = psutil.Process(os.getpid())

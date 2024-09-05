@@ -13,7 +13,6 @@ import math
 import logging
 import redis
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
-from ..ai_ev_query_system.make_query import make_query
 
 
 logging.basicConfig(level=logging.INFO)
