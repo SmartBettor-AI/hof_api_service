@@ -1,0 +1,43 @@
+name: Build and Deploy DEV on Push
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Deploy MASTER to EC2
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          echo "${EC2_SSH_KEY}" > ssh_key
+          chmod 600 ssh_key
+          ssh -o StrictHostKeyChecking=no -i ssh_key $EC2_USER@$EC2_HOST << 'EOF'
+            cd SmartBetter-website
+            git pull origin master
+            
+            # Stop existing instance on port 5051 if running
+            while true; do
+              if sudo lsof -i :5051 > /dev/null 2>&1; then
+                  echo "Process found on port 5051. Attempting to kill..."
+                  sudo kill -9 $(sudo netstat -tulnp | grep :5051 | awk '{print $7}' | cut -d'/' -f1)
+                  sleep 5
+              else
+                  echo "No process found on port 5051. Moving on."
+                  break
+              fi
+            done
+            
+            # Start new instance on port 5051
+            nohup taskset -c 2 gunicorn --workers=4 --bind=0.0.0.0:5051 app:app > nohup.out 2>&1 &
+
+          EOF
