@@ -22,8 +22,8 @@ jobs:
           echo "${EC2_SSH_KEY}" > ssh_key
           chmod 600 ssh_key
           ssh -o StrictHostKeyChecking=no -i ssh_key $EC2_USER@$EC2_HOST << 'EOF'
-            cd SmartBetter-website
-            git pull origin master
+            cd hof/dev/HOF-Website
+            git pull origin dev
             
             # Stop existing instance on port 5051 if running
             while true; do
