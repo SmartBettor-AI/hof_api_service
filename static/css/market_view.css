@@ -1,0 +1,440 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+:root,
+[data-theme=":default"] {
+  --sidebar-bg-color: linear-gradient(to bottom, #21ce99, #f7f7f7);;
+  --sidebar-font-color: #fff;
+  --sidebar-li-active-color: #10674c;
+  --sidebar-li-active-bg: #fff;
+  --sidebar-border-color: #fff;
+  --nav-bg: #ebeeed;
+  --nav-bg-mobile: linear-gradient(to right, #21ce99, #f7f7f7);
+  --nav-bg-mobile:  #21ce99;
+  --nav-border: rgba(255, 255, 255, 100%);
+  --nav-icons-color: #91a09a;
+  --content-bg: #ebeeed;
+  --table-bg: #fff;
+  --table-p-color: #303835;
+  --table-btn-font-color: #fff;
+  --table-btn-bg: #011a13;
+  --table-border-color: #afbab6;
+  --table-border: none;
+  --table-placeholder-color: #91a09a;
+  --table-input-color: #101312;
+  --table-select: #404a46;
+  --table-thead-bg: #ebeeed;
+  --table-thead-color: #404a46;
+  --table-trow-border: #4d5f5a;
+  --table-trow-special-color: #39ce9a;
+  --table-trow-color: #303835;
+  --table-footer-p-color: #404a46;
+  --table-previous-btn-bg: #ebeeed;
+  --table-previous-btn-color: #91a09a;
+  --table-not-active-btn-color: #101312;
+  --table-shadow: #21ce99;
+  --close-menu-icons-color: #041a13;
+  --scroll-bg: #cdd4d1;
+  --m: none;
+  --row-box-special-color-from:rgb(33,206, 153, 1);
+  --row-box-special-color-to:rgba(33,206, 153, 0);
+  --theme-color:#21ce99;
+}
+
+[data-theme=dark] {
+  --sidebar-bg-color: linear-gradient(to bottom, #041a13, #02694C);
+  --sidebar-font-color: #afbab6;
+  --sidebar-li-active-color: #fff;
+  --sidebar-li-active-bg: rgba(255, 255, 255, 15%);
+  --sidebar-border-color: rgba(255, 255, 255, 15%);
+  --nav-bg: linear-gradient(to right, #041a13, #02694C, #041a13, #D2D3D3);
+  --nav-bg: #041a13;
+  --nav-bg-mobile: linear-gradient(to right, #041a13, #024331);
+  --nav-bg-mobile:  #041a13;
+  --nav-border: rgba(255, 255, 255, 15%);
+  --nav-icons-color: #fff;
+  --content-bg: #011e16;
+  --table-bg: #011A13;
+  --table-p-color: #cdd4d1;
+  --table-btn-font-color: #2c3331;
+  --table-btn-bg: #f7f7f7;
+  --table-border-color: #afbab6;
+  --table-placeholder-color: #91a09a;
+  --table-input-color: #fff;
+  --table-select: #fff;
+  --table-thead-bg: #2e3534;
+  --table-thead-color: #afbab6;
+  --table-trow-border: white;
+  --table-trow-color: #fff;
+  --table-trow-special-color: #21f3b8;
+  --table-footer-p-color: #fff;
+  --table-previous-btn-bg: #363c3b;
+  --table-previous-btn-color: #afbab6;
+  --table-not-active-btn-color: #afbab6;
+  --table-shadow: rgba(243, 240, 240, 0.5);
+  --close-menu-icons-color: #fff;
+  --scroll-bg: #404a46;
+  --table-border: 2px solid rgba(255, 255, 255, 100%);
+  --row-box-special-color:black;
+  --row-box-special-color-from:rgba(255,255,255, 1) ;
+  --row-box-special-color-to:rgba(255,255,255, 0) ;
+  --theme-color:#041a13;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+a{
+  text-decoration: none;
+}
+
+
+body{
+  background-color: grey;
+  margin: 0 !important;
+}
+
+img{
+ max-width: 172px;
+}
+
+.container-custom{
+  display: flex;
+  align-items: flex-start;
+}
+.navbar-custom {
+  height: 60px;
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  /* background: var(--content-bg); */
+  background: var(--nav-bg);
+  width: 100%;
+  border-bottom: 1px solid var(--nav-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.75rem;
+}
+.navbar-custom i {
+  font-size: 1rem;
+}
+.navbar-custom .navbar-custom__left i {
+  display: none;
+  font-size: 1.3rem;
+  color: var(--close-menu-icons-color);
+  cursor: pointer;
+}
+@media (max-width: 49em) {
+  .navbar-custom .navbar-custom__left i {
+    display: flex;
+  }
+}
+
+.navbar-custom .navbar-custom__right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.main-custom {
+  margin-left: 204px;
+  width: calc(100% - 204px);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100vh;
+  overflow-y: scroll;
+}
+@media (max-width: 49em) {
+  .main-custom {
+    margin-left: 0;
+  }
+}
+
+.content-custom {
+  flex: 1;
+  background-color: var(--content-bg);
+  overflow: hidden;
+  min-height: calc(100vh - 60px);
+  overflow-y: scroll;
+  display: flex;
+  flex-direction: row;
+}
+
+.table-custom{
+  width: 100%;
+}
+
+.table-custom-header{
+  height: 131px;
+  background-color: var(--table-bg);
+  position: fixed;
+}
+
+.full-filter{
+  width: 100%;
+}
+
+.full-filter-content {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  justify-content: flex-start;
+  align-items: center;
+  overflow: visible;
+}
+
+.full-filter-ind-content {
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  cursor: pointer;
+  margin: 10px;
+  position: relative;
+  padding-left: 14px;
+}
+
+.full-filter-ind-content-title {
+  width: auto;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  color: white;
+  align-items: center;
+  padding: 4px;
+  border: 2px solid var(--table-thead-bg);
+  border-radius: 5px;
+}
+
+.full-filter-ind-content-values {
+  height: 200px;
+  overflow: scroll;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    position: absolute;
+    top: 100%;
+    z-index: 100;
+    background-color: var(--table-thead-bg);
+    opacity: 95%;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.filter-dropdown-item {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  font-size: 0.65rem;
+  color: var(--table-thead-color);
+  text-align: center;
+  border-radius: 5px;
+  width: 20%;
+  width: 100%;
+}
+
+.filter-dropdown-item.active {
+  font-size: 0.65rem;
+  font-weight: bold;
+  color: var(--table-btn-bg);
+  text-align: center;
+}
+
+.custom-checkbox {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+  padding:10px
+}
+
+
+.custom-checkbox input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.checkmark {
+  position: relative;
+  height: 10px;
+  width: 10px;
+  display: inline-block;
+  background-color: var(--table-thead-bg);
+  border: 1px solid var(--table-thead-color);
+  border-radius: 2px;
+}
+
+.custom-checkbox input[type="checkbox"]:checked + .checkmark {
+  background-color: #21ce99;
+}
+
+.filter-value-content-a {
+  margin-left: 10px;
+  color: var(--table-btn-bg);
+}
+
+
+.filter-dropdown-label {
+    font-size: .7rem;
+    color: var(--table-thead-color);
+    text-align: center;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.amount-selected {
+  display: flex;
+  background-color: var(--table-thead-bg);
+  border-radius: 3px;
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+.amount-selected a {
+  font-size: 0.7rem;
+  padding-left: 3px;
+  padding-right: 3px;
+}
+
+.amount-selected-label {
+  font-size: 0.7rem;
+  padding-left: 5px;
+  margin-right: 10px;
+}
+
+.filter-dropdown-button {
+  cursor: pointer;
+  transform: rotate(90deg);
+  color: var(--table-thead-color);
+  margin-right: 10px;
+  font-size: 0.8rem;
+}
+
+#data-list{
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  color: white;
+  margin-top: 131px;
+}
+
+#data-list-header{
+  display: flex;
+  flex-direction: row;
+}
+
+.blank-header{
+  width: 100%;
+  background-color: var(--table-bg);
+}
+
+.blank-header-content{
+  width: 100px
+}
+
+.box{
+  width: 100%;
+  background-color: beige;
+}
+
+.test-filter-container{
+  display: flex;
+  flex-direction: column;
+  width: 25%;
+}
+
+.active p{
+  color: red;
+}
+
+.single-game{
+  border: 2px solid red;
+}
+
+.single-game tr{
+  display: flex;
+  flex-direction: row;
+}
+
+.game-div-row{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-div-row.away-team,
+.game-div-row.home-team
+{
+  width: 100px;
+  padding: 10px;
+}
+
+.game-div-row.home-team
+{
+  border-top: 1px solid grey;
+}
+
+tr{
+  border: 1px solid green;
+}
+
+.odds-container{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.odds-row{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 100%;
+  justify-content: center;
+
+}
+
+.odds-row div{
+  display: flex;
+  padding: 5px;
+  width: 80px;
+  border: 1px solid grey;
+  height: 100px;
+  justify-content: center;
+
+}
+
+.odds-row div p{
+  display: flex;
+  align-items: center;
+}
+
+.hidden{
+  display: none !important;
+}
+
+.fade-to-red {
+  /* Set the initial background color to green */
+  background-color: red;
+  /* Apply the animation to change the background color gradually */
+  animation: fadeRedAnimation 5s linear forwards;
+}
+
+/* Define the animation */
+@keyframes fadeRedAnimation {
+  /* At the beginning (0%), the background color is green */
+  0% {
+      background-color: red;
+  }
+  /* At the end (100%), the background color transitions to red */
+  100% {
+      background-color: grey;
+  }
+}
+
+

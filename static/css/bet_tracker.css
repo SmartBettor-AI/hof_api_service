@@ -1,0 +1,152 @@
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
+  /* background-color: #190e29; */
+  color: #fefefe;
+}
+
+.table-wrapper {
+  display: flex;
+  flex-direction: column; /* Stack content vertically */
+  justify-content: flex-start; /* Align content to the top */
+  align-items: center; /* Center horizontally */
+  height: 100vh; /* Adjust this value to control the vertical centering */
+}
+
+table {
+  width: 50%;
+  border-collapse: collapse;
+  border-bottom: 2px solid #253c4d;
+  margin-top: 20px; /* Add margin for space from the top */
+}
+
+th, td {
+  padding: 8px;
+  text-align: left;
+}
+
+.border-top {
+  border-top: 2px solid #253c4d;
+  border-left: 2px solid #253c4d;
+  border-right: 2px solid #253c4d;
+}
+
+.border-r-l {
+  border-left: 2px solid #253c4d;
+  border-right: 2px solid #253c4d;
+}
+
+.pair-start {
+  padding-top: 10px;
+}
+
+.page-content{
+  height: calc(100vh - 60px);
+  background-color: var(--content-bg);
+}
+
+.bets-container{
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.bet{
+  display: flex;
+  flex-direction: column;
+  margin: 5px 5px 5px 5px;
+  height: 200px;
+  width: 20%;
+  border-radius: 10px;
+  border: 1px solid var(--table-trow-border);
+}
+
+.bet > :nth-child(1){
+  padding-top: 10%;
+  border-bottom: 1px solid var(--table-trow-border);
+}
+
+.bet > :nth-child(2){
+  position:relative;
+}
+
+.cell-div{
+  display: flex;
+  width: 33%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell-div:nth-child(1),
+.cell-div:nth-child(2){
+  border-right: 1px solid var(--table-trow-border);
+}
+
+.bet h2, .bet h3{
+  color: var(--table-btn-bg);
+  font-size: 0.65rem;
+  background-color: var(--table-bg);
+}
+
+.header-box{
+  display:flex;
+  flex-direction:row;
+  justify-content: space-between;
+  text-align: center;
+}
+
+.header-box h3{
+  width: 33%;
+}
+
+.row-box{
+  display:flex;
+  flex-direction:row;
+  /* padding-top: 30px; */
+  height: 30%;
+  border-bottom: 1px solid var(--table-trow-border);
+  align-items: center;
+}
+
+.cell-div{
+  text-align: center;
+}
+
+.bets-container{
+  background-color: var(--table-bg);
+}
+
+.img-container{
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-bottom: none;
+}
+
+.logo-img{
+  /* width: 40px; */
+  height: 50%;
+}
+
+
+
+@media only screen and (max-width: 786px) {
+  .bets-container{
+    flex-direction: column;
+    width: 100%;
+  }
+  .bet{
+    width: 100%;
+  }
+}
+
+
+
+

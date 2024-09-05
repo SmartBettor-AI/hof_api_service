@@ -1,0 +1,231 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+:root,
+[data-theme=":default"] {
+  --sidebar-bg-color: linear-gradient(to bottom, #041a13, #02694C);
+  --sidebar-font-color: #afbab6;
+  --sidebar-li-active-color: #fff;
+  --sidebar-li-active-bg: rgba(255, 255, 255, 15%);
+  --sidebar-border-color: rgba(255, 255, 255, 15%);
+  --nav-bg: linear-gradient(to right, #041a13, #02694C, #041a13, #D2D3D3);
+  --nav-bg: #041a13;
+  --nav-bg-mobile: linear-gradient(to right, #041a13, #024331);
+  --nav-bg-mobile:  #041a13;
+  --nav-border: rgba(255, 255, 255, 15%);
+  --nav-icons-color: #fff;
+  --content-bg: #011e16;
+  --table-bg: #011A13;
+  --table-p-color: #cdd4d1;
+  --table-btn-font-color: #2c3331;
+  --table-btn-bg: #f7f7f7;
+  --table-border-color: #afbab6;
+  --table-placeholder-color: #91a09a;
+  --table-input-color: #fff;
+  --table-select: #fff;
+  --table-thead-bg: #2e3534;
+  --table-thead-color: #afbab6;
+  --table-trow-border: white;
+  --table-trow-color: #fff;
+  --table-trow-special-color: #21f3b8;
+  --table-footer-p-color: #fff;
+  --table-previous-btn-bg: #363c3b;
+  --table-previous-btn-color: #afbab6;
+  --table-not-active-btn-color: #afbab6;
+  --table-shadow: rgba(243, 240, 240, 0.5);
+  --close-menu-icons-color: #fff;
+  --scroll-bg: #404a46;
+  --table-border: 2px solid rgba(255, 255, 255, 100%);
+  --row-box-special-color:black;
+  --row-box-special-color-from:rgba(255,255,255, 1) ;
+  --row-box-special-color-to:rgba(255,255,255, 0) ;
+}
+
+[data-theme=dark] {
+  --sidebar-bg-color: linear-gradient(to bottom, #041a13, #02694C);
+  --sidebar-font-color: #afbab6;
+  --sidebar-li-active-color: #fff;
+  --sidebar-li-active-bg: rgba(255, 255, 255, 15%);
+  --sidebar-border-color: rgba(255, 255, 255, 15%);
+  --nav-bg: linear-gradient(to right, #041a13, #02694C, #041a13, #D2D3D3);
+  --nav-bg: #041a13;
+  --nav-bg-mobile: linear-gradient(to right, #041a13, #024331);
+  --nav-bg-mobile:  #041a13;
+  --nav-border: rgba(255, 255, 255, 15%);
+  --nav-icons-color: #fff;
+  --content-bg: #011e16;
+  --table-bg: #011A13;
+  --table-p-color: #cdd4d1;
+  --table-btn-font-color: #2c3331;
+  --table-btn-bg: #f7f7f7;
+  --table-border-color: #afbab6;
+  --table-placeholder-color: #91a09a;
+  --table-input-color: #fff;
+  --table-select: #fff;
+  --table-thead-bg: #2e3534;
+  --table-thead-color: #afbab6;
+  --table-trow-border: white;
+  --table-trow-color: #fff;
+  --table-trow-special-color: #21f3b8;
+  --table-footer-p-color: #fff;
+  --table-previous-btn-bg: #363c3b;
+  --table-previous-btn-color: #afbab6;
+  --table-not-active-btn-color: #afbab6;
+  --table-shadow: rgba(243, 240, 240, 0.5);
+  --close-menu-icons-color: #fff;
+  --scroll-bg: #404a46;
+  --table-border: 2px solid rgba(255, 255, 255, 100%);
+  --row-box-special-color:black;
+  --row-box-special-color-from:rgba(255,255,255, 1) ;
+  --row-box-special-color-to:rgba(255,255,255, 0) ;
+}
+
+body{
+  overflow-x: hidden;
+}
+
+
+.sidebar-custom {
+  position: fixed;
+  z-index: 5;
+  top: 0;
+  bottom: 0;
+  width: 204px;
+  background: var(--sidebar-bg-color);
+  color: var(--sidebar-font-color);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.4375rem 1rem;
+  gap: 2rem;
+  border-right: 1px solid var(--nav-border);
+  font-family: "Inter", sans-serif !important;
+  height: 100vh !important;
+  position: absolute;
+}
+
+.text {
+  font-size: 12px;
+  padding: 0 5px;
+  color: inherit;
+}
+
+
+.line-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
+ul {
+  list-style-type: none;
+}
+
+.line {
+  flex: 1;
+  height: 1px;
+  background-color: var(--sidebar-border-color);
+}
+
+@media (max-width: 49em) {
+  .sidebar-custom {
+    transform: translateX(-100%);
+    transition: all 0.3s ease-in;
+    width: 100%;
+  }
+  .sidebar-custom.active {
+    transform: translateX(0);
+    inset: 0;
+  }
+}
+.sidebar-custom .sidebar-custom__logo {
+  max-width: 172px;
+}
+.sidebar-custom .sidebar-custom__logo i {
+  font-size: 1.1rem;
+  display: none;
+}
+@media (max-width: 49em) {
+  .sidebar-custom .sidebar-custom__logo {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .sidebar-custom .sidebar-custom__logo img {
+    max-width: 11rem;
+  }
+  .sidebar-custom .sidebar-custom__logo i {
+    display: block;
+    color: var(--close-menu-icons-color);
+    cursor: pointer;
+  }
+  .sidebar-custom .sidebar-custom__logo i:hover {
+    opacity: 0.7;
+  }
+}
+.sidebar-custom .sidebar-custom__navigations-links {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.sidebar-custom .sidebar-custom__navigations-links li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 2.5rem;
+  cursor: pointer;
+  padding: 0 0.75rem;
+  border: 1px solid transparent;
+}
+.sidebar-custom .sidebar-custom__navigations-links li span a a:visited{
+  font-size: 0.875rem;
+  color: var(--sidebar-font-color);
+}
+.sidebar-custom .sidebar-custom__navigations-links li svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.sidebar-custom .sidebar-custom__navigations-links li svg path {
+  fill: var(--sidebar-font-color);
+}
+.sidebar-custom .sidebar-custom__navigations-links li:hover, .sidebar-custom .sidebar-custom__navigations-links li.active{
+  background-color: var(--sidebar-li-active-bg);
+  border-radius: 8px;
+  border: 1px solid var(--sidebar-li-active-bg);
+  color: var(--sidebar-li-active-color);
+}
+a:visited {
+  color: inherit;
+  text-decoration: none;
+}
+.line-wrapper .text {
+  color: white;
+}
+
+
+.white{
+  color: white;
+}
+.sidebar-custom .sidebar-custom__navigations-links li:hover svg path, .sidebar-custom .sidebar-custom__navigations-links li.active svg path {
+  fill: var(--sidebar-li-active-color);
+}
+.hobjob:hover{
+    filter: brightness(0) invert(1);
+}
+#account {
+  color: white;
+}
+.sidebar-custom .sidebar-custom__navigations-links__bottom {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--sidebar-border-color);
+}
+
+li img{
+  fill:  var(--sidebar-font-color);
+  /* fill:"red"; */
+}

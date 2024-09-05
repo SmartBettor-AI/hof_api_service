@@ -1,0 +1,71 @@
+import pandas as pd
+import redis
+redis_client = redis.Redis(host='localhost', port=6379, db=0)
+
+def update_dataframe_and_cache(dataframe, path):
+    serialized_df = dataframe.to_json()
+    redis_client.set(path, serialized_df)
+
+
+if __name__ == "__main__":
+  nhl_arb = pd.read_csv('arb_data/nhl_arb_data.csv')
+  mlb_arb = pd.read_csv('arb_data/mlb_arb_data.csv')
+  nba_arb = pd.read_csv('arb_data/nba_arb_data.csv')
+  wnba_arb = pd.read_csv('arb_data/wnba_arb_data.csv')
+  pll_arb = pd.read_csv('arb_data/pll_arb_data.csv')
+  acon_arb = pd.read_csv("arb_data/soccer_africa_cup_of_nations_arb_data.csv")
+  copa_arb = pd.read_csv("arb_data/soccer_conmebol_copa_america_arb_data.csv")
+  epl_arb = pd.read_csv("arb_data/soccer_epl_arb_data.csv")
+  bunde_arb = pd.read_csv("arb_data/soccer_germany_bundesliga_arb_data.csv")
+  seriea_arb = pd.read_csv("arb_data/soccer_italy_serie_a_arb_data.csv")
+  laliga_arb = pd.read_csv("arb_data/soccer_spain_la_liga_arb_data.csv")
+  uefachamps_arb = pd.read_csv("arb_data/soccer_uefa_champs_league_arb_data.csv")
+  uefachampsq_arb = pd.read_csv("arb_data/soccer_uefa_champs_league_qualification_arb_data.csv")
+  uefaeuropa_arb = pd.read_csv("arb_data/soccer_uefa_europa_league_arb_data.csv")
+  mls_arb = pd.read_csv("arb_data/soccer_usa_mls_arb_data.csv")
+  euros_arb = pd.read_csv("arb_data/soccer_uefa_european_championship_arb_data.csv")
+  ausopenmens1_arb = pd.read_csv("arb_data/tennis_atp_aus_open_singles_arb_data.csv")
+  usopenmens1_arb = pd.read_csv("arb_data/tennis_atp_us_open_arb_data.csv")
+  wimbledonmens1_arb = pd.read_csv("arb_data/tennis_atp_wimbledon_arb_data.csv")
+  usopenwomens1_arb = pd.read_csv("arb_data/tennis_wta_us_open_arb_data.csv")
+  frenchopenmens1_arb = pd.read_csv("arb_data/tennis_atp_french_open_arb_data.csv")
+  wimbledonwomens1_arb = pd.read_csv("arb_data/tennis_wta_wimbledon_arb_data.csv")
+  mma_arb = pd.read_csv("arb_data/mma_mixed_martial_arts_arb_data.csv")
+  nfl_arb = pd.read_csv("arb_data/americanfootball_nfl_arb_data.csv")
+  ncaaf_arb = pd.read_csv("arb_data/americanfootball_ncaaf_arb_data.csv")
+
+
+  arb_dash_cache = pd.concat([nhl_arb, mlb_arb, nba_arb, wnba_arb, pll_arb, acon_arb, copa_arb, epl_arb, bunde_arb, seriea_arb, laliga_arb, uefachamps_arb, uefachampsq_arb, uefaeuropa_arb, mls_arb, euros_arb, ausopenmens1_arb, usopenmens1_arb, wimbledonmens1_arb, usopenwomens1_arb, frenchopenmens1_arb, wimbledonwomens1_arb, mma_arb, nfl_arb, ncaaf_arb], ignore_index=True)
+  update_dataframe_and_cache(nhl_arb, 'nhl_arb_cache')
+  update_dataframe_and_cache(mlb_arb,'mlb_arb_cache')
+  update_dataframe_and_cache(nba_arb, 'nba_arb_cache')
+  update_dataframe_and_cache(wnba_arb, 'wnba_arb_cache')
+  update_dataframe_and_cache(pll_arb, 'pll_arb_cache')
+  update_dataframe_and_cache(acon_arb,'soccer_africa_cup_of_nations_arb_cache')
+  update_dataframe_and_cache(copa_arb,'soccer_conmebol_copa_america_arb_cache')
+  update_dataframe_and_cache(epl_arb,'soccer_epl_arb_cache')
+  update_dataframe_and_cache(bunde_arb,'soccer_germany_bundesliga_arb_cache')
+  update_dataframe_and_cache(seriea_arb,'soccer_italy_serie_a_arb_cache')
+  update_dataframe_and_cache(laliga_arb,'soccer_spain_la_liga_arb_cache')
+  update_dataframe_and_cache(uefachamps_arb,'soccer_uefa_champs_league_arb_cache')
+  update_dataframe_and_cache(uefachampsq_arb,'soccer_uefa_champs_league_qualification_arb_cache')
+  update_dataframe_and_cache(uefaeuropa_arb,'soccer_uefa_europa_league_arb_cache')
+  update_dataframe_and_cache(mls_arb,'soccer_usa_mls_arb_cache')
+  update_dataframe_and_cache(euros_arb,'soccer_uefa_european_championship_arb_cache')
+  update_dataframe_and_cache(ausopenmens1_arb, 'tennis_atp_aus_open_singles_arb_cache')
+  update_dataframe_and_cache(usopenmens1_arb, 'tennis_atp_us_open_arb_cache')
+  update_dataframe_and_cache(wimbledonmens1_arb, 'tennis_atp_wimbledon_arb_cache')
+  update_dataframe_and_cache(usopenwomens1_arb, 'tennis_wta_us_open_arb_cache')
+  update_dataframe_and_cache(frenchopenmens1_arb, 'tennis_atp_french_open_arb_cache')
+  update_dataframe_and_cache(wimbledonwomens1_arb, 'tennis_wta_wimbledon_arb_cache')
+  update_dataframe_and_cache(mma_arb,'mma_mixed_martial_arts_arb_cache')
+  update_dataframe_and_cache(nfl_arb, 'americanfootball_nfl_arb_cache')
+  update_dataframe_and_cache(ncaaf_arb, 'americanfootball_ncaaf_arb_cache')
+
+
+  
+  update_dataframe_and_cache(arb_dash_cache, 'arb_dash_cache')
+
+  print()
+  print("All cached dataframes reset!")
+  print()
