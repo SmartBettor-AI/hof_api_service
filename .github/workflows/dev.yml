@@ -3,7 +3,7 @@ name: Build and Deploy DEV on Push
 on:
   push:
     branches:
-      - master
+      - dev
 
 jobs:
   build-deploy:
