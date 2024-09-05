@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     app = Flask(__name__, template_folder='static/templates', static_folder='static')
-    CORS(app, supports_credentials=True)
+    CORS(app, supports_credentials=False, resources={r"/*": {"origins": "*"}})
+
 
 
     Compress(app)
