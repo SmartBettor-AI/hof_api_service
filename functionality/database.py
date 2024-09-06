@@ -1067,6 +1067,7 @@ class database():
       session = self.db_manager.create_session()
       try:
         today = func.current_date()
+        one_day_ago = func.now() - timedelta(days=1)
 
         # Aliased table for subquery
         latest_odds = aliased(MMAOdds)
@@ -1081,6 +1082,7 @@ class database():
                 func.max(latest_odds.pulled_time).label('max_pulled_time')
             )
             .filter(latest_odds.game_date >= today, latest_odds.market_key.in_(['h2h']))
+            .filter(MMAOdds.pulled_time >= one_day_ago)
             .group_by(latest_odds.game_id, latest_odds.market, latest_odds.id)
             .subquery()
         )
@@ -1172,6 +1174,7 @@ class database():
             .join(MMAGames, MMAOdds.game_id == MMAGames.id)
             .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)
             .filter(totals_subquery.c.rank == 1)  # Only get the most recent for each game_id and market
+            .filter(MMAOdds.pulled_time >= one_day_ago)
           )
 
         result2 = session.execute(stmt2)
@@ -1208,7 +1211,7 @@ class database():
       try:
           today = func.current_date()
           four_ago = func.current_date() - timedelta(days=4)
-
+          one_day_ago = func.now() - timedelta(days=1)
           # Aliased table for subquery
           latest_odds = aliased(MMAOdds)
 
@@ -1238,6 +1241,7 @@ class database():
             .join(MMAGames, MMAOdds.game_id == MMAGames.id)
             .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)
             .filter(subquery.c.rank == 1)  # Only get the most recent for each game_id and market
+            .filter(MMAOdds.pulled_time >= one_day_ago)
             .filter(MMAOdds.game_id == gameId)  # Only gameId
           )
 
