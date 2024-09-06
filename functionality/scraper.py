@@ -39,9 +39,11 @@ class MMAScraper:
         self.options.add_argument("--use-fake-ui-for-media-stream")
         self.options.add_argument("--use-fake-device-for-media-stream")
         self.options.add_argument("--disable-extensions")
+        self.options.add_argument("--headless")
         self.options.add_argument("--disable-dev-shm-usage")
         self.options.add_argument("--no-sandbox")
         self.options.add_argument("--disable-popup-blocking")
+        options.add_argument("--disable-gpu")  # Disable GPU for headless mode
         self.options.add_argument("start-maximized")
         self.options.add_argument("disable-infobars")
         self.options.add_argument("--disable-web-security")
