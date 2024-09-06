@@ -8,6 +8,6 @@ run_python_process() {
     taskset -c $cpu_cores nohup python3 $script > $log_file &
 }
 
-run_python_process "0,1" functionality/scraper.py scraper.log
+run_python_process "0,1" scraper.py scraper.log
 
 echo "EV runners processes started."
