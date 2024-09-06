@@ -982,8 +982,7 @@ class fightOddsIOScraper(MMAScraper):
 
 
 
-                                            
-                    this_df.to_csv(f'{os.getcwd()}/mma_formatted_odds/{file}')
+             
 
 
 
