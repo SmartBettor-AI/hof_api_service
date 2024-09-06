@@ -675,7 +675,7 @@ class fightOddsIOScraper(MMAScraper):
 
 
         # Create the file path and replace spaces with underscores
-        path = f'mma_raw_odds/{name_and_date[0]}_{name_and_date[1]}.csv'.replace(' ', '_')
+        path = f'{os.getcwd()}/mma_raw_odds/{name_and_date[0]}_{name_and_date[1]}.csv'.replace(' ', '_')
 
         # Save the DataFrame to CSV
         df.to_csv(path, index=False)
