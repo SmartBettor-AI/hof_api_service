@@ -547,139 +547,142 @@ class fightOddsIOScraper(MMAScraper):
 
 
     def get_odds_per_page(self, url):
-
-        api_key_1 = os.environ.get("scraping_ant_key1")
-        api_key_2 = os.environ.get("scraping_ant_key2")
-        api_key_3 = os.environ.get("scraping_ant_key3")
-        api_key_4 = os.environ.get("scraping_ant_key4")
-        driver = webdriver.Chrome(service=Service(self.driver_path),options=self.options)
-
-        api_keys = [api_key_3, api_key_4, api_key_2,api_key_1
-                            ]
-        api_key =api_keys[i % len(api_keys)]
-
-        driver.get(url)
-
         try:
-            buttons = driver.find_elements(By.CSS_SELECTOR, ".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
-        
-            if buttons:
-                # Wait until the buttons are visible and clickable
-                WebDriverWait(driver, 10).until(
-                    EC.visibility_of_all_elements_located((By.CSS_SELECTOR, ".MuiButtonBase-root.MuiButton-root.MuiButton-contained"))
-                )
 
-                # Find all buttons and click them
+            api_key_1 = os.environ.get("scraping_ant_key1")
+            api_key_2 = os.environ.get("scraping_ant_key2")
+            api_key_3 = os.environ.get("scraping_ant_key3")
+            api_key_4 = os.environ.get("scraping_ant_key4")
+            driver = webdriver.Chrome(service=Service(self.driver_path),options=self.options)
+
+            api_keys = [api_key_3, api_key_4, api_key_2,api_key_1
+                                ]
+            api_key =api_keys[i % len(api_keys)]
+
+            driver.get(url)
+
+            try:
                 buttons = driver.find_elements(By.CSS_SELECTOR, ".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
-                for button in buttons:
-                    button.click()
-                    time.sleep(1)  # Optional: add a small delay between clicks
+            
+                if buttons:
+                    # Wait until the buttons are visible and clickable
+                    WebDriverWait(driver, 10).until(
+                        EC.visibility_of_all_elements_located((By.CSS_SELECTOR, ".MuiButtonBase-root.MuiButton-root.MuiButton-contained"))
+                    )
 
-            # Get the updated page source after clicking the buttons
-            html_content = driver.page_source
+                    # Find all buttons and click them
+                    buttons = driver.find_elements(By.CSS_SELECTOR, ".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
+                    for button in buttons:
+                        button.click()
+                        time.sleep(1)  # Optional: add a small delay between clicks
 
-            # Close the WebDriver
-            driver.quit()
+                # Get the updated page source after clicking the buttons
+                html_content = driver.page_source
 
-            soup = BeautifulSoup(html_content, "html.parser")
+                # Close the WebDriver
+                driver.quit()
 
-            # Now you can find the table or any other elements you're interested in
-            table = soup.find("table")
+                soup = BeautifulSoup(html_content, "html.parser")
 
+                # Now you can find the table or any other elements you're interested in
+                table = soup.find("table")
+
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                driver.quit()
+
+
+            # Extract the class names of each <tr> and store them
+            class_names = []
+            rows = table.find_all("tr")
+            last_btn_or_no = False
+            for row in rows: 
+                tds = row.find_all("td")
+            
+                if tds:
+                # Get the last <td> element
+                    last_td = tds[-1]
+                    btn = last_td.find("button")
+                    
+                    # Check if there is a <button> tag within the last <td>
+                    if btn:
+                        #Case where there is an odds button in the last td (weird thing where emties are two rows so the last is an odds if there is clcoudbet)
+                        style = btn.get('style', '')
+
+                        aria_label = btn.get('aria-label')
+                        #append twice to account for the previous row ml
+                        if aria_label:
+                            if 'account' in aria_label:
+                                if not last_btn_or_no: 
+                                    class_names.pop() 
+
+                                class_names.append('')
+                                class_names.append('')
+                                last_btn_or_no = True
+                        elif 'padding' in style:
+                            class_names.append('pr')
+                            last_btn_or_no = False
+                        else:
+                            last_btn_or_no = True
+                            continue
+                    else:
+                        last_btn_or_no = False
+                        class_names.append('pr')
+            # # Exclude the class name of the first row
+                        
+            print(len(class_names))
+            print(len)
+            # class_names = class_names[1:]
+
+            # Convert the table to a DataFrame
+
+            df = pd.read_html(str(table))[0]
+            print(len(df))
+            df['class_name'] = class_names
+            df.to_csv('oddstable.csv')
+            df = df.rename(columns={'Fighters': 'market'})
+            df = df.drop(columns=['Unnamed: 16'])
+
+            columns_to_check = df.columns.difference(['market', 'class_name'])
+
+            # Step 2: Drop rows where all specified columns are NaN
+            df = df.dropna(subset=columns_to_check, how='all')
+
+            name_and_date = self.find_fight_name_and_date(soup)
+            df['fight_name'] = name_and_date[0]
+            date_str = name_and_date[1]
+            month_day = datetime.strptime(date_str, '%B %d')
+            now = datetime.now()
+            current_year = now.year
+            current_month = now.month
+            month = month_day.month
+            day = month_day.day
+
+            # Determine the year
+            if month >= current_month:
+                year = current_year
+            else:
+                year = current_year + 1
+
+            final_date = datetime(year, month, day)
+
+            # Subtract one day
+            new_date = final_date + timedelta(days=1)
+
+            # Format the new date as a string
+            final_date_str = new_date.strftime('%Y_%m_%d')
+            
+            df['game_date'] =  final_date_str
+
+
+            # Create the file path and replace spaces with underscores
+            path = f'{os.getcwd()}/mma_raw_odds/{name_and_date[0]}_{name_and_date[1]}.csv'.replace(' ', '_')
+
+            # Save the DataFrame to CSV
+            df.to_csv(path, index=False)
         except Exception as e:
             print(f"An error occurred: {e}")
-            driver.quit()
-
-
-        # Extract the class names of each <tr> and store them
-        class_names = []
-        rows = table.find_all("tr")
-        last_btn_or_no = False
-        for row in rows: 
-            tds = row.find_all("td")
-        
-            if tds:
-            # Get the last <td> element
-                last_td = tds[-1]
-                btn = last_td.find("button")
-                
-                # Check if there is a <button> tag within the last <td>
-                if btn:
-                    #Case where there is an odds button in the last td (weird thing where emties are two rows so the last is an odds if there is clcoudbet)
-                    style = btn.get('style', '')
-
-                    aria_label = btn.get('aria-label')
-                    #append twice to account for the previous row ml
-                    if aria_label:
-                        if 'account' in aria_label:
-                            if not last_btn_or_no: 
-                                class_names.pop() 
-
-                            class_names.append('')
-                            class_names.append('')
-                            last_btn_or_no = True
-                    elif 'padding' in style:
-                        class_names.append('pr')
-                        last_btn_or_no = False
-                    else:
-                        last_btn_or_no = True
-                        continue
-                else:
-                    last_btn_or_no = False
-                    class_names.append('pr')
-        # # Exclude the class name of the first row
-                    
-        print(len(class_names))
-        print(len)
-        # class_names = class_names[1:]
-
-        # Convert the table to a DataFrame
-
-        df = pd.read_html(str(table))[0]
-        print(len(df))
-        df['class_name'] = class_names
-        df.to_csv('oddstable.csv')
-        df = df.rename(columns={'Fighters': 'market'})
-        df = df.drop(columns=['Unnamed: 16'])
-
-        columns_to_check = df.columns.difference(['market', 'class_name'])
-
-        # Step 2: Drop rows where all specified columns are NaN
-        df = df.dropna(subset=columns_to_check, how='all')
-
-        name_and_date = self.find_fight_name_and_date(soup)
-        df['fight_name'] = name_and_date[0]
-        date_str = name_and_date[1]
-        month_day = datetime.strptime(date_str, '%B %d')
-        now = datetime.now()
-        current_year = now.year
-        current_month = now.month
-        month = month_day.month
-        day = month_day.day
-
-        # Determine the year
-        if month >= current_month:
-            year = current_year
-        else:
-            year = current_year + 1
-
-        final_date = datetime(year, month, day)
-
-        # Subtract one day
-        new_date = final_date + timedelta(days=1)
-
-        # Format the new date as a string
-        final_date_str = new_date.strftime('%Y_%m_%d')
-        
-        df['game_date'] =  final_date_str
-
-
-        # Create the file path and replace spaces with underscores
-        path = f'{os.getcwd()}/mma_raw_odds/{name_and_date[0]}_{name_and_date[1]}.csv'.replace(' ', '_')
-
-        # Save the DataFrame to CSV
-        df.to_csv(path, index=False)
-
+            return  # Return on any error
     # Burns v Brady fight
     # Fight Lines: Moneylines, draw, main totals (grouped), fight to go the distance
     # Round props: FIghter Wins in round 1, 2, 3, inside distance 
