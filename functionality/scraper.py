@@ -214,7 +214,7 @@ class BestFightOddsScraper(MMAScraper):
 
 
                 # Create the file path and replace spaces with underscores
-                path = f'mma_raw_odds/{h1_tag.text}_{span_tag.text}.csv'.replace(' ', '_')
+                path = f'{os.getcwd()}/mma_raw_odds/{h1_tag.text}_{span_tag.text}.csv'.replace(' ', '_')
 
                 # Save the DataFrame to CSV
                 df.to_csv(path, index=False)
@@ -1149,7 +1149,7 @@ class fightOddsIOScraper(MMAScraper):
 
 scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
 fightOddsIO = fightOddsIOScraper('https://fightodds.io/')
-i = 2
+i = 0
 while True:
     i += 1
     fightOddsIO.scrape_event_data(i)
