@@ -140,7 +140,7 @@ class Scores(Base):
 
 
 class MMAOdds(Base):
-    __tablename__ = 'mma_odds_test'
+    __tablename__ = 'mma_odds'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     market = Column(String(255))
@@ -161,13 +161,13 @@ class MMAOdds(Base):
     dropdown = Column(Integer)
 
 class MMAGames(Base):
-    __tablename__ = 'mma_games_backup'
+    __tablename__ = 'mma_games'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     my_game_id = Column(String(255))
 
 class MMAEvents(Base):
-    __tablename__ = 'mma_events_backup'
+    __tablename__ = 'mma_events'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     my_event_id = Column(String(255))
