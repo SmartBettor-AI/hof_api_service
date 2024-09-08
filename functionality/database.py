@@ -1214,6 +1214,7 @@ class database():
           one_day_ago = func.now() - timedelta(days=1)
           # Aliased table for subquery
           latest_odds = aliased(MMAOdds)
+          
 
           # Subquery to get the most recent pulled_time for each game_id and market, after filtering by date
           subquery = (
