@@ -121,14 +121,17 @@ def get_MMA_data():
     logger.info('Game data')
     cache_key = "mma_data"
     cached_data = redis_client.get(cache_key)
+    logger.info(cached_data)
 
     if cached_data:
-        print('here is the cached data')
+        logger.info('here is the cached data')
         # If cached data is found, return it
         return jsonify(jsonpickle.decode(cached_data))
 
     # If not cached, query the database
     event_data = app.db.get_mma_data()
+    logger.info('here is the data from the db')
+    logger.info(event_data)
     event_data_df =  pd.DataFrame(event_data)
     event_data_df.to_csv('event_Data.csv', index = False)
 
