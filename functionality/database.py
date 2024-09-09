@@ -1068,8 +1068,9 @@ class database():
 
     def decimal_to_float(self, obj):
       if isinstance(obj, Decimal):
-          return float(obj)
-      raise TypeError
+        return float(obj)
+      raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
 
     def get_mma_data(self):
       session = self.db_manager.create_session()
