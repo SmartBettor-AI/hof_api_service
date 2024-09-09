@@ -124,21 +124,26 @@ def get_MMA_data():
     logger.info(cached_data)
 
     if cached_data:
-        logger.info('here is the cached data')
-        # If cached data is found, return it
-        return jsonify(jsonpickle.decode(cached_data))
+        # Decode the cached data to check if it's empty
+        decoded_data = jsonpickle.decode(cached_data)
+        
+        # If cached data is found but empty, delete the cache and query the database
+        if not decoded_data:  # Assuming an empty list or dataframe in the cache
+            logger.info('Empty cached data, clearing cache')
+            redis_client.delete(cache_key)
+        else:
+            logger.info('here is the cached data')
+            return jsonify(decoded_data)
 
-    # If not cached, query the database
+    # If not cached or the cache was empty, query the database
     event_data = app.db.get_mma_data()
     logger.info('here is the data from the db')
     logger.info(event_data)
-    event_data_df =  pd.DataFrame(event_data)
-    event_data_df.to_csv('event_Data.csv', index = False)
+    event_data_df = pd.DataFrame(event_data)
+    event_data_df.to_csv('event_Data.csv', index=False)
 
     # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
     redis_client.set(cache_key, jsonpickle.encode(event_data, default=app.db.decimal_to_float), ex=1800)
-
-    
 
     return jsonify(event_data)
 
