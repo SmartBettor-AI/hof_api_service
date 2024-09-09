@@ -1161,5 +1161,6 @@ while True:
     # Uncomment the following lines to scrape events from BestFightOdds.com if we lose access to .io
     # events = scraper.scrape_event_data(i)
     # scraper.format_odds()
-
+    #timeout for 5 minutes
+    time.sleep(300)
     print("Events Done!")
