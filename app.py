@@ -118,6 +118,7 @@ def get_MMA_data():
     cached_data = redis_client.get(cache_key)
 
     if cached_data:
+        print('here is the cached data')
         # If cached data is found, return it
         return jsonify(json.loads(cached_data))
 
