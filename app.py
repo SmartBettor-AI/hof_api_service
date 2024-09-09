@@ -21,7 +21,7 @@ from flask_cors import CORS
 import redis
 import psutil
 from functools import wraps
-import json
+import simplejson as json
 from decimal import Decimal
 
 
@@ -127,9 +127,12 @@ def get_MMA_data():
 
     # If not cached, query the database
     event_data = app.db.get_mma_data()
+    event_data.to_csv('event_Data.csv', index = False)
 
     # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
     redis_client.set(cache_key, json.dumps(event_data, default=app.db.decimal_to_float), ex=1800)
+
+    
 
     return jsonify(event_data)
 
