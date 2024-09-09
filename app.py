@@ -118,6 +118,7 @@ def retry_on_session_error(max_retries=3, delay=1):
 @app.route('/api/get_MMA_Data', methods=['GET'])
 def get_MMA_data():
     # Check if data is cached in Redis
+    logger.info('Game data')
     cache_key = "mma_data"
     cached_data = redis_client.get(cache_key)
 
