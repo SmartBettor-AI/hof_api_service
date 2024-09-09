@@ -121,7 +121,6 @@ def get_MMA_data():
     logger.info('Game data')
     cache_key = "mma_data"
     cached_data = redis_client.get(cache_key)
-    logger.info(cached_data)
 
     if cached_data:
         # Decode the cached data to check if it's empty
