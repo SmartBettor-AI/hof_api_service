@@ -1031,6 +1031,8 @@ class database():
       finally:
             session.close()
 
+    
+
 
     def update_customer_emails(self):
       has_more = True
@@ -1062,6 +1064,12 @@ class database():
 
 
       print('done with update customer emails')
+    
+
+    def decimal_to_float(self, obj):
+      if isinstance(obj, Decimal):
+          return float(obj)
+      raise TypeError
 
     def get_mma_data(self):
       session = self.db_manager.create_session()

@@ -22,6 +22,7 @@ import redis
 import psutil
 from functools import wraps
 import json
+from decimal import Decimal
 
 
 process = psutil.Process(os.getpid())
@@ -111,6 +112,8 @@ def retry_on_session_error(max_retries=3, delay=1):
     return decorator
 
 
+
+
 @app.route('/api/get_MMA_Data', methods=['GET'])
 def get_MMA_data():
     # Check if data is cached in Redis
@@ -126,9 +129,10 @@ def get_MMA_data():
     event_data = app.db.get_mma_data()
 
     # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
-    redis_client.set(cache_key, json.dumps(event_data), ex=3600)
+    redis_client.set(cache_key, json.dumps(event_data, default=app.db.decimal_to_float), ex=1800)
 
     return jsonify(event_data)
+
 
 
 @app.route('/api/get_MMA_Game_Data', methods=['GET'])
@@ -147,7 +151,7 @@ def get_MMA_Game_Data():
     game_data = app.db.get_MMA_game_data(game_id)
 
     # Store the result in Redis with a timeout
-    redis_client.set(cache_key, json.dumps(game_data), ex=3600)
+    redis_client.set(cache_key, json.dumps(game_data, default=app.db.decimal_to_float), ex=1800)
 
     return jsonify(game_data)
 
