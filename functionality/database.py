@@ -1066,11 +1066,10 @@ class database():
       print('done with update customer emails')
     
 
-    def decimal_to_float(self, obj):
+    def decimal_to_float(obj):
       if isinstance(obj, Decimal):
-        return float(obj)
-      raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
+          return float(obj)
+      return obj  # Let json.dumps handle other types
 
     def get_mma_data(self):
       session = self.db_manager.create_session()
