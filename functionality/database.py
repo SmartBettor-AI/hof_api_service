@@ -1043,6 +1043,7 @@ class database():
           # Fetch a batch of customers
           customers = stripe.Customer.list(limit=100, starting_after=starting_after)
 
+
           for customer in customers.data:
               email = customer.email
               if email and email != email.lower():
