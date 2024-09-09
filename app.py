@@ -12,6 +12,7 @@ from functionality.db_manager import DBManager
 import warnings
 warnings.filterwarnings("ignore")
 from flask_socketio import SocketIO
+import jsonpickle
 from flask import Flask, jsonify
 from flask_socketio import SocketIO
 import time
@@ -114,65 +115,65 @@ def retry_on_session_error(max_retries=3, delay=1):
 
 
 
-# @app.route('/api/get_MMA_Data', methods=['GET'])
-# def get_MMA_data():
-#     # Check if data is cached in Redis
-#     cache_key = "mma_data"
-#     cached_data = redis_client.get(cache_key)
-
-#     if cached_data:
-#         print('here is the cached data')
-#         # If cached data is found, return it
-#         return jsonify(json.loads(cached_data))
-
-#     # If not cached, query the database
-#     event_data = app.db.get_mma_data()
-#     event_data_df =  pd.DataFrame(event_data)
-#     event_data_df.to_csv('event_Data.csv', index = False)
-
-#     # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
-#     redis_client.set(cache_key, json.dumps(event_data, default=app.db.decimal_to_float), ex=1800)
-
-    
-
-#     return jsonify(event_data)
-
-
-
-# @app.route('/api/get_MMA_Game_Data', methods=['GET'])
-# def get_MMA_Game_Data():
-#     game_id = request.args.get('gameId')
-#     cache_key = f"mma_game_data:{game_id}"
-    
-#     # Check if game data is cached
-#     cached_data = redis_client.get(cache_key)
-
-#     if cached_data:
-#         # Return cached data if available
-#         return jsonify(json.loads(cached_data))
-
-#     # Otherwise, query the database
-#     game_data = app.db.get_MMA_game_data(game_id)
-
-#     # Store the result in Redis with a timeout
-#     redis_client.set(cache_key, json.dumps(game_data, default=app.db.decimal_to_float), ex=1800)
-
-#     return jsonify(game_data)
-
-
 @app.route('/api/get_MMA_Data', methods=['GET'])
 def get_MMA_data():
+    # Check if data is cached in Redis
+    cache_key = "mma_data"
+    cached_data = redis_client.get(cache_key)
+
+    if cached_data:
+        print('here is the cached data')
+        # If cached data is found, return it
+        return jsonify(jsonpickle.decode(cached_data))
+
+    # If not cached, query the database
     event_data = app.db.get_mma_data()
+    event_data_df =  pd.DataFrame(event_data)
+    event_data_df.to_csv('event_Data.csv', index = False)
+
+    # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
+    redis_client.set(cache_key, jsonpickle.encode(event_data, default=app.db.decimal_to_float), ex=1800)
+
+    
+
     return jsonify(event_data)
 
 
-@app.route('/api/get_MMA_Game_Data', methods = ['GET'])
+
+@app.route('/api/get_MMA_Game_Data', methods=['GET'])
 def get_MMA_Game_Data():
     game_id = request.args.get('gameId')
+    cache_key = f"mma_game_data:{game_id}"
+    
+    # Check if game data is cached
+    cached_data = redis_client.get(cache_key)
+
+    if cached_data:
+        # Return cached data if available
+        return jsonify(jsonpickle.decode(cached_data))
+
+    # Otherwise, query the database
     game_data = app.db.get_MMA_game_data(game_id)
-    logger.info('Game data')
-    logger.info(game_data)
+
+    # Store the result in Redis with a timeout
+    redis_client.set(cache_key, jsonpickle.encode(game_data, default=app.db.decimal_to_float), ex=1800)
+
     return jsonify(game_data)
+
+
+# @app.route('/api/get_MMA_Data', methods=['GET'])
+# def get_MMA_data():
+#     event_data = app.db.get_mma_data()
+#     return jsonify(event_data)
+
+
+# @app.route('/api/get_MMA_Game_Data', methods = ['GET'])
+# def get_MMA_Game_Data():
+#     game_id = request.args.get('gameId')
+#     game_data = app.db.get_MMA_game_data(game_id)
+#     logger.info('Game data')
+#     logger.info(game_data)
+#     return jsonify(game_data)
 
 
 
