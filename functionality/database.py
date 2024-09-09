@@ -1066,7 +1066,7 @@ class database():
       print('done with update customer emails')
     
 
-    def decimal_to_float(obj):
+    def decimal_to_float(self,obj):
       if isinstance(obj, Decimal):
           return float(obj)
       return obj  # Let json.dumps handle other types
