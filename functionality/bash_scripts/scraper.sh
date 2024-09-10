@@ -5,9 +5,15 @@ run_python_process() {
     local cpu_cores=$1
     local script=$2
     local log_file=$3
-    taskset -c $cpu_cores nohup python3 $script > $log_file &
+    # Using absolute path and ensuring stdout and stderr are both redirected to the log file
+    nohup python3 $script > $log_file 2>&1 &
 }
 
-run_python_process "0,1" "../scraper.py" scraper.log
+# Use absolute paths to avoid relative path issues
+script_path="/absolute/path/to/scraper.py"
+log_file="functionality/bash_scripts/scraper.log"
+
+# Run the Python process (omit taskset if unnecessary)
+run_python_process "0,1" "$script_path" "$log_file"
 
 echo "EV runners processes started."
