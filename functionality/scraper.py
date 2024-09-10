@@ -9,10 +9,10 @@ from selenium.common.exceptions import TimeoutException, StaleElementReferenceEx
 from bs4 import BeautifulSoup
 from selenium.webdriver.chrome.options import Options
 from db_manager import DBManager
-from sqlalchemy import create_engine, MetaData, Table
-from sqlalchemy import select, insert, MetaData, Table
-from scrapingbee import ScrapingBeeClient
-from database import database
+from functionality.models import LoginInfo, MMAEvents, MMAOdds, MMAGames
+from sqlalchemy import create_engine, select, insert, MetaData, Table
+from sqlalchemy.orm import aliased
+
 import pandas as pd
 import jsonpickle
 import logging
@@ -30,6 +30,7 @@ import os
 from datetime import datetime, timedelta
 import uuid
 import redis
+from sqlalchemy import desc, func, select
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 class MMAScraper:
@@ -38,7 +39,6 @@ class MMAScraper:
         self.options = Options()
         # configure the profile to store cookies and cache
         self.db_manager = DBManager()
-        self.database = database()
         metadata = MetaData(bind=self.db_manager.get_engine())
         self.mma_games = Table('mma_games', metadata, autoload_with=self.db_manager.get_engine())
         self.mma_odds = Table('mma_odds', metadata, autoload_with=self.db_manager.get_engine())
@@ -704,15 +704,163 @@ class fightOddsIOScraper(MMAScraper):
     # Other props:
     #   Fight doesn't end in split or majority
     #   Fight ends in split or majority
-    def get_mma_data(self):
+    def get_mma_data_for_cache(self):
         cache_key = "mma_data"
-        event_data = self.database.get_mma_data()
+        event_data = self.get_mma_data()
         logger.info('here is the data from the db')
         redis_client.delete(cache_key)
         # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
         redis_client.set(cache_key, jsonpickle.encode(event_data), ex=1800)
 
         return
+    
+    def get_mma_data(self):
+      session = self.db_manager.create_session()
+  
+      
+      try:
+        today = func.current_date()
+        one_day_ago = func.now() - timedelta(days=1)
+
+        latest_odds = aliased(MMAOdds)
+        other_side = aliased(MMAOdds)
+
+        # Subquery to get the most recent pulled_time for each game_id and market
+        subquery = (
+            select(
+                latest_odds.id,
+                latest_odds.game_id,
+                latest_odds.market,
+                latest_odds.pulled_id,
+                func.max(latest_odds.pulled_time).label('max_pulled_time')
+            )
+            .where(latest_odds.game_date >= today, latest_odds.market_key.in_(['h2h']))
+            .where(latest_odds.pulled_time >= one_day_ago)
+            .group_by(latest_odds.game_id, latest_odds.market)
+            .subquery()
+        )
+
+        # Main query with joins
+        stmt = (
+            select(
+                MMAOdds,
+                MMAGames.my_game_id,
+                MMAEvents.my_event_id,
+                other_side
+            )
+            .join(subquery, (MMAOdds.game_id == subquery.c.game_id) &
+                  (MMAOdds.market == subquery.c.market) &
+                  (MMAOdds.pulled_time == subquery.c.max_pulled_time))
+            .join(MMAGames, MMAOdds.game_id == MMAGames.id)  # Join with MMAGames to get my_game_id
+            .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)  # Join with MMAEvents to get my_event_id
+            .outerjoin(
+                other_side,
+                (MMAOdds.game_id == other_side.game_id) &
+                (MMAOdds.market != other_side.market) &
+                (MMAOdds.market_key == other_side.market_key) &
+                (other_side.pulled_id == subquery.c.pulled_id) &
+                (other_side.id < subquery.c.id)
+            )
+        )
+
+        # Execute the optimized query
+        rows = session.execute(stmt).all()
+
+        # Process results
+        data = []
+        for mma_odds, my_game_id, my_event_id, other_row in rows:
+            if other_row:
+                row_data = {
+                    'id': mma_odds.id,
+                    'market': mma_odds.market,
+                    'pulled_time': str(mma_odds.pulled_time),
+                    'odds': mma_odds.odds,
+                    'home_team': mma_odds.home_team,
+                    'away_team': mma_odds.away_team,
+                    'highest_bettable_odds': mma_odds.highest_bettable_odds,
+                    'sportsbooks_used': mma_odds.sportsbooks_used,
+                    'market_key': mma_odds.market_key,
+                    'game_date': mma_odds.game_date,
+                    'game_id': mma_odds.game_id,
+                    'my_game_id': my_game_id,
+                    'my_event_id': my_event_id,
+                    'other_id': other_row.id,
+                    'other_market': other_row.market,
+                    'other_pulled_time': str(other_row.pulled_time),
+                    'other_odds': other_row.odds,
+                    'other_home_team': other_row.home_team,
+                    'other_away_team': other_row.away_team,
+                    'other_highest_bettable_odds': other_row.highest_bettable_odds,
+                    'other_sportsbooks_used': other_row.sportsbooks_used,
+                    'other_market_key': other_row.market_key,
+                    'other_game_date': other_row.game_date
+                }
+
+                data.append(row_data)
+
+        # Aliased table for subquery
+        latest_odds2 = aliased(MMAOdds)
+
+        # Subquery to get the most recent pulled_time for each game_id and market, after filtering by date
+        totals_subquery = (
+            session.query(
+                latest_odds2.id,
+                latest_odds2.game_id,
+                latest_odds2.market,
+                latest_odds2.market_key,
+                func.row_number().over(
+                    partition_by=[latest_odds2.game_id, latest_odds2.market_key, latest_odds2.market],
+                    order_by=latest_odds2.pulled_time.desc()
+                ).label('rank')
+            )
+            .filter(latest_odds2.game_date >= today)
+            .filter(latest_odds2.market_key.in_(['Main Total']))
+
+            .subquery()
+          )
+
+        stmt2 = (
+            session.query(
+                MMAOdds,
+                MMAGames.my_game_id,
+                MMAEvents.my_event_id,
+            )
+            .join(totals_subquery, MMAOdds.id == totals_subquery.c.id)
+            .join(MMAGames, MMAOdds.game_id == MMAGames.id)
+            .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)
+            .filter(totals_subquery.c.rank == 1)  # Only get the most recent for each game_id and market
+            .filter(MMAOdds.pulled_time >= one_day_ago)
+          )
+
+        result2 = session.execute(stmt2)
+        rows2 = result2.fetchall()
+        for mma_odds, my_game_id, my_event_id, in rows2:
+            row_data = {
+                'id': mma_odds.id,
+                'market': mma_odds.market,
+                'pulled_time': str(mma_odds.pulled_time),
+                'odds': mma_odds.odds,
+                'home_team': mma_odds.home_team,
+                'away_team': mma_odds.away_team,
+                'highest_bettable_odds': mma_odds.highest_bettable_odds,
+                'sportsbooks_used': mma_odds.sportsbooks_used,
+                'market_key': mma_odds.market_key,
+                'game_date': mma_odds.game_date,
+                'game_id': mma_odds.game_id,
+                'my_game_id': my_game_id,
+                'my_event_id': my_event_id,
+                'average_market_odds': mma_odds.average_market_odds,
+                'market_type': mma_odds.market_type,
+                'dropdown': mma_odds.dropdown,
+            }
+
+            data.append(row_data)
+
+        return data
+
+      finally:
+        session.close()
+
 
     def categorize_markets(self, df):
             def categorize(row):
@@ -1173,7 +1321,7 @@ while True:
     i += 1
     fightOddsIO.scrape_event_data(i)
     fightOddsIO.format_odds()
-    fightOddsIO.get_mma_data()
+    fightOddsIO.get_mma_data_for_cache()
 
 
     # Uncomment the following lines to scrape events from BestFightOdds.com if we lose access to .io
