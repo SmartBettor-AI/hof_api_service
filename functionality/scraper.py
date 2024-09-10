@@ -12,7 +12,12 @@ from db_manager import DBManager
 from sqlalchemy import create_engine, MetaData, Table
 from sqlalchemy import select, insert, MetaData, Table
 from scrapingbee import ScrapingBeeClient
+from database import database
 import pandas as pd
+import jsonpickle
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 import re
 import json
 import numpy as np
@@ -24,6 +29,8 @@ import http.client
 import os
 from datetime import datetime, timedelta
 import uuid
+import redis
+redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 class MMAScraper:
 
@@ -31,6 +38,7 @@ class MMAScraper:
         self.options = Options()
         # configure the profile to store cookies and cache
         self.db_manager = DBManager()
+        self.database = database()
         metadata = MetaData(bind=self.db_manager.get_engine())
         self.mma_games = Table('mma_games', metadata, autoload_with=self.db_manager.get_engine())
         self.mma_odds = Table('mma_odds', metadata, autoload_with=self.db_manager.get_engine())
@@ -696,6 +704,16 @@ class fightOddsIOScraper(MMAScraper):
     # Other props:
     #   Fight doesn't end in split or majority
     #   Fight ends in split or majority
+    def get_mma_data(self):
+        cache_key = "mma_data"
+        redis_client.delete(cache_key)
+         
+        event_data = self.database.get_mma_data()
+        logger.info('here is the data from the db')
+        # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
+        redis_client.set(cache_key, jsonpickle.encode(event_data), ex=1800)
+
+        return
 
     def categorize_markets(self, df):
             def categorize(row):
@@ -1156,6 +1174,7 @@ while True:
     i += 1
     fightOddsIO.scrape_event_data(i)
     fightOddsIO.format_odds()
+    fightOddsIO.get_mma_data()
 
 
     # Uncomment the following lines to scrape events from BestFightOdds.com if we lose access to .io
