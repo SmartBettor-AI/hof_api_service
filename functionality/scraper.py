@@ -706,10 +706,9 @@ class fightOddsIOScraper(MMAScraper):
     #   Fight ends in split or majority
     def get_mma_data(self):
         cache_key = "mma_data"
-        redis_client.delete(cache_key)
-         
         event_data = self.database.get_mma_data()
         logger.info('here is the data from the db')
+        redis_client.delete(cache_key)
         # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
         redis_client.set(cache_key, jsonpickle.encode(event_data), ex=1800)
 
