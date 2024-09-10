@@ -10,8 +10,8 @@ run_python_process() {
 }
 
 # Use absolute paths to avoid relative path issues
-script_path="/absolute/path/to/scraper.py"
-log_file="functionality/bash_scripts/scraper.log"
+script_path="/home/ec2-user/hof/HOF-Website/functionality/scraper.py"
+log_file="/home/ec2-user/hof/HOF-Website/functionality/bash_scripts/scraper.log"
 
 # Run the Python process (omit taskset if unnecessary)
 run_python_process "0,1" "$script_path" "$log_file"
