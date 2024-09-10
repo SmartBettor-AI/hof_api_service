@@ -138,7 +138,7 @@ def get_MMA_data():
     event_data = app.db.get_mma_data()
     logger.info('here is the data from the db')
     # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
-    redis_client.set(cache_key, jsonpickle.encode(event_data), ex=1800)
+    redis_client.set(cache_key, jsonpickle.encode(event_data), ex=700)
 
     return jsonify(event_data)
 
@@ -160,7 +160,7 @@ def get_MMA_Game_Data():
     game_data = app.db.get_MMA_game_data(game_id)
 
     # Store the result in Redis with a timeout
-    redis_client.set(cache_key, jsonpickle.encode(game_data), ex=1800)
+    redis_client.set(cache_key, jsonpickle.encode(game_data), ex=700)
 
     return jsonify(game_data)
 

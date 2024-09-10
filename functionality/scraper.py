@@ -708,10 +708,12 @@ class fightOddsIOScraper(MMAScraper):
         cache_key = "mma_data"
         event_data = self.get_mma_data()
         logger.info('here is the data from the db')
+        logger.info(event_data[:10])
         redis_client.delete(cache_key)
+        logger.info('delete the cache')
         # Store the result in Redis with a timeout (e.g., 1 hour = 3600 seconds)
         redis_client.set(cache_key, jsonpickle.encode(event_data), ex=1800)
-
+        logger.info('wrote the cache')
         return
     
     def get_mma_data(self):
