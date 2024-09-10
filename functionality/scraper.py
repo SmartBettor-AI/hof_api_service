@@ -9,7 +9,7 @@ from selenium.common.exceptions import TimeoutException, StaleElementReferenceEx
 from bs4 import BeautifulSoup
 from selenium.webdriver.chrome.options import Options
 from db_manager import DBManager
-from functionality.models import LoginInfo, MMAEvents, MMAOdds, MMAGames
+from models import LoginInfo, MMAEvents, MMAOdds, MMAGames
 from sqlalchemy import create_engine, select, insert, MetaData, Table
 from sqlalchemy.orm import aliased
 
