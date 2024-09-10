@@ -159,6 +159,7 @@ class MMAOdds(Base):
     average_market_odds = Column(Integer)
     market_type = Column(String(255))
     dropdown = Column(Integer)
+    pulled_id = Column(String(255))
 
 class MMAGames(Base):
     __tablename__ = 'mma_games'

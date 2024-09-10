@@ -1162,5 +1162,6 @@ while True:
     # events = scraper.scrape_event_data(i)
     # scraper.format_odds()
     #timeout for 5 minutes
-    time.sleep(300)
+    
     print("Events Done!")
+    time.sleep(300)

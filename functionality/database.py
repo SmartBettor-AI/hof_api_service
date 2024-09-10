@@ -19,7 +19,7 @@ import secrets
 import hashlib
 import redis
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import aliased
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -1072,73 +1072,77 @@ class database():
           return float(obj)
       return obj  # Let json.dumps handle other types
 
+   
     def get_mma_data(self):
       session = self.db_manager.create_session()
+  
+      
       try:
         today = func.current_date()
         one_day_ago = func.now() - timedelta(days=1)
 
-        # Aliased table for subquery
         latest_odds = aliased(MMAOdds)
         other_side = aliased(MMAOdds)
 
-        # Subquery to get the most recent pulled_time for each game_id and market, after filtering by date
+        # Subquery to get the most recent pulled_time for each game_id and market
         subquery = (
-            session.query(
+            select(
+                latest_odds.id,
                 latest_odds.game_id,
                 latest_odds.market,
-                latest_odds.id.label('latest_id'),
+                latest_odds.pulled_id,
                 func.max(latest_odds.pulled_time).label('max_pulled_time')
             )
-            .filter(latest_odds.game_date >= today, latest_odds.market_key.in_(['h2h']))
-            .filter(MMAOdds.pulled_time >= one_day_ago)
-            .group_by(latest_odds.game_id, latest_odds.market, latest_odds.id)
+            .where(latest_odds.game_date >= today, latest_odds.market_key.in_(['h2h']))
+            .where(latest_odds.pulled_time >= one_day_ago)
+            .group_by(latest_odds.game_id, latest_odds.market)
             .subquery()
         )
 
-        # Main query to get the full row corresponding to the most recent pulled_time
+        # Main query with joins
         stmt = (
-            session.query(
+            select(
                 MMAOdds,
                 MMAGames.my_game_id,
                 MMAEvents.my_event_id,
                 other_side
             )
-            .select_from(MMAOdds)
             .join(subquery, (MMAOdds.game_id == subquery.c.game_id) &
                   (MMAOdds.market == subquery.c.market) &
                   (MMAOdds.pulled_time == subquery.c.max_pulled_time))
-            .join(MMAGames, MMAOdds.game_id == MMAGames.id)  # Join with mma_games to get my_game_id
-            .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)  # Join with mma_events to get my_event_id
-            .outerjoin(other_side, (MMAOdds.game_id == other_side.game_id) &
-                        (MMAOdds.market != other_side.market) &
-                        (MMAOdds.market_key == other_side.market_key) &
-                        (other_side.pulled_time == subquery.c.max_pulled_time))  # Self-join for the other side of the market
+            .join(MMAGames, MMAOdds.game_id == MMAGames.id)  # Join with MMAGames to get my_game_id
+            .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)  # Join with MMAEvents to get my_event_id
+            .outerjoin(
+                other_side,
+                (MMAOdds.game_id == other_side.game_id) &
+                (MMAOdds.market != other_side.market) &
+                (MMAOdds.market_key == other_side.market_key) &
+                (other_side.pulled_id == subquery.c.pulled_id) &
+                (other_side.id < subquery.c.id)
+            )
         )
 
-        result = session.execute(stmt)
-        rows = result.fetchall()
+        # Execute the optimized query
+        rows = session.execute(stmt).all()
+
+        # Process results
         data = []
         for mma_odds, my_game_id, my_event_id, other_row in rows:
-            row_data = {
-                'id': mma_odds.id,
-                'market': mma_odds.market,
-                'pulled_time': str(mma_odds.pulled_time),
-                'odds': mma_odds.odds,
-                'home_team': mma_odds.home_team,
-                'away_team': mma_odds.away_team,
-                'highest_bettable_odds': mma_odds.highest_bettable_odds,
-                'sportsbooks_used': mma_odds.sportsbooks_used,
-                'market_key': mma_odds.market_key,
-                'game_date': mma_odds.game_date,
-                'game_id': mma_odds.game_id,
-                'my_game_id': my_game_id,
-                'my_event_id': my_event_id
-            }
-
-            # If there is a corresponding other side, add its details
             if other_row:
-                row_data.update({
+                row_data = {
+                    'id': mma_odds.id,
+                    'market': mma_odds.market,
+                    'pulled_time': str(mma_odds.pulled_time),
+                    'odds': mma_odds.odds,
+                    'home_team': mma_odds.home_team,
+                    'away_team': mma_odds.away_team,
+                    'highest_bettable_odds': mma_odds.highest_bettable_odds,
+                    'sportsbooks_used': mma_odds.sportsbooks_used,
+                    'market_key': mma_odds.market_key,
+                    'game_date': mma_odds.game_date,
+                    'game_id': mma_odds.game_id,
+                    'my_game_id': my_game_id,
+                    'my_event_id': my_event_id,
                     'other_id': other_row.id,
                     'other_market': other_row.market,
                     'other_pulled_time': str(other_row.pulled_time),
@@ -1149,8 +1153,9 @@ class database():
                     'other_sportsbooks_used': other_row.sportsbooks_used,
                     'other_market_key': other_row.market_key,
                     'other_game_date': other_row.game_date
-                })
-            data.append(row_data)
+                }
+
+                data.append(row_data)
 
         # Aliased table for subquery
         latest_odds2 = aliased(MMAOdds)
@@ -1214,6 +1219,8 @@ class database():
 
       finally:
         session.close()
+
+    
 
     def get_MMA_game_data(self, gameId):
       session = self.db_manager.create_session()
