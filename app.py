@@ -24,6 +24,7 @@ import psutil
 from functools import wraps
 import simplejson as json
 from decimal import Decimal
+from datetime import datetime
 
 
 process = psutil.Process(os.getpid())
@@ -150,21 +151,21 @@ def get_MMA_Game_Data():
     
     # Check if game data is cached
     cached_data = redis_client.get(cache_key)
-    logger.info(f'start of mma_game_data request{time.time()}')
+    logger.info(f'start of mma_game_data request{datetime.now()}')
 
     if cached_data:
-        logger.info(f'Cached data returned{time.time()}')
+        logger.info(f'Cached data returned{datetime.now()}')
         # Return cached data if available
         return jsonify(jsonpickle.decode(cached_data))
 
     # Otherwise, query the database
-    logger.info(f'start of mma_game_data db rq{time.time()}')
+    logger.info(f'start of mma_game_data db rq{datetime.now()}')
     game_data = app.db.get_MMA_game_data(game_id)
-    logger.info(f'end of mma_game_data db rq{time.time()}')
+    logger.info(f'end of mma_game_data db rq{datetime.now()}')
 
     # Store the result in Redis with a timeout
     redis_client.set(cache_key, jsonpickle.encode(game_data), ex=700)
-    logger.info(f'set cache{time.time()}')
+    logger.info(f'set cache{datetime.now()}')
 
     return jsonify(game_data)
 
