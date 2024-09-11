@@ -170,6 +170,7 @@ def get_MMA_Game_Data():
     return jsonify(game_data)
 
 
+
 # @app.route('/api/get_MMA_Data', methods=['GET'])
 # def get_MMA_data():
 #     event_data = app.db.get_mma_data()
