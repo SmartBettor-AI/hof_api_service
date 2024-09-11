@@ -19,7 +19,7 @@ import secrets
 import hashlib
 import redis
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, and_
 from sqlalchemy.orm import aliased
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -1223,70 +1223,66 @@ class database():
     
 
     def get_MMA_game_data(self, gameId):
-      session = self.db_manager.create_session()
-      try:
-          today = func.current_date()
-          four_ago = func.current_date() - timedelta(days=4)
-          one_day_ago = func.now() - timedelta(days=1)
-          # Aliased table for subquery
-          latest_odds = aliased(MMAOdds)
-          
+      with self.db_manager.create_session() as session:
+        today = func.current_date()
+        one_day_ago = func.now() - timedelta(days=1)
 
-          # Subquery to get the most recent pulled_time for each game_id and market, after filtering by date
-          subquery = (
-            session.query(
-                latest_odds.id,
-                latest_odds.game_id,
-                latest_odds.market,
-                func.row_number().over(
-                    partition_by=[latest_odds.game_id, latest_odds.market],
-                    order_by=latest_odds.pulled_time.desc()
-                ).label('rank')
+        # Subquery to get the most recent pulled_time for each game_id and market
+        latest_odds = (
+            select(
+                MMAOdds.game_id,
+                MMAOdds.market,
+                func.max(MMAOdds.pulled_time).label('max_pulled_time')
             )
-            .filter(latest_odds.game_date >= today)
+            .filter(and_(
+                MMAOdds.game_date >= today,
+                MMAOdds.pulled_time >= one_day_ago,
+                MMAOdds.game_id == gameId
+            ))
+            .group_by(MMAOdds.game_id, MMAOdds.market)
             .subquery()
-          )
+        )
 
-        # Main query filtering for rank == 1
-          stmt = (
-            session.query(
+        # Main query
+        stmt = (
+            select(
                 MMAOdds,
                 MMAGames.my_game_id,
-                MMAEvents.my_event_id,
+                MMAEvents.my_event_id
             )
-            .join(subquery, MMAOdds.id == subquery.c.id)
+            .join(latest_odds, and_(
+                MMAOdds.game_id == latest_odds.c.game_id,
+                MMAOdds.market == latest_odds.c.market,
+                MMAOdds.pulled_time == latest_odds.c.max_pulled_time
+            ))
             .join(MMAGames, MMAOdds.game_id == MMAGames.id)
             .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)
-            .filter(subquery.c.rank == 1)  # Only get the most recent for each game_id and market
-            .filter(MMAOdds.pulled_time >= one_day_ago)
-            .filter(MMAOdds.game_id == gameId)  # Only gameId
-          )
+            .filter(MMAOdds.game_id == gameId)
+        )
 
-          result = session.execute(stmt)
-          rows = result.fetchall()
-          data = []
-          for mma_odds, my_game_id, my_event_id, in rows:
-              row_data = {
-                  'id': mma_odds.id,
-                  'market': mma_odds.market,
-                  'pulled_time': str(mma_odds.pulled_time),
-                  'odds': mma_odds.odds,
-                  'home_team': mma_odds.home_team,
-                  'away_team': mma_odds.away_team,
-                  'highest_bettable_odds': mma_odds.highest_bettable_odds,
-                  'sportsbooks_used': mma_odds.sportsbooks_used,
-                  'market_key': mma_odds.market_key,
-                  'game_date': mma_odds.game_date,
-                  'game_id': mma_odds.game_id,
-                  'my_game_id': my_game_id,
-                  'my_event_id': my_event_id,
-                  'average_market_odds': mma_odds.average_market_odds,
-                  'market_type': mma_odds.market_type,
-                  'dropdown': mma_odds.dropdown,
-              }
+        result = session.execute(stmt)
+        
+        data = [
+            {
+                'id': mma_odds.id,
+                'market': mma_odds.market,
+                'pulled_time': str(mma_odds.pulled_time),
+                'odds': mma_odds.odds,
+                'home_team': mma_odds.home_team,
+                'away_team': mma_odds.away_team,
+                'highest_bettable_odds': mma_odds.highest_bettable_odds,
+                'sportsbooks_used': mma_odds.sportsbooks_used,
+                'market_key': mma_odds.market_key,
+                'game_date': mma_odds.game_date,
+                'game_id': mma_odds.game_id,
+                'my_game_id': my_game_id,
+                'my_event_id': my_event_id,
+                'average_market_odds': mma_odds.average_market_odds,
+                'market_type': mma_odds.market_type,
+                'dropdown': mma_odds.dropdown,
+            }
+            for mma_odds, my_game_id, my_event_id in result
+        ]
 
-              data.append(row_data)
-          return data
-
-      finally:
-          session.close()
+        return data
+   
