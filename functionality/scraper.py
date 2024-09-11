@@ -873,9 +873,8 @@ class fightOddsIOScraper(MMAScraper):
                 except:
                     current_market_keys = ['']
 
-                if (any(x in market for x in ['ko', 'tko', 'dq', 'submission', 'wins by decision', 'decision']) and
-                    all(x not in row['home_team'] for x in ['ko', 'tko', 'dq', 'submission', 'wins by decision', 'decision']) and
-                    all(x not in row['away_team'] for x in ['ko', 'tko', 'dq', 'submission', 'wins by decision', 'decision'])):
+                if any(x in market for x in ['ko', 'tko', 'dq', 'submission', 'wins by decision', 'decision']) and current_market_keys != 'h2h' and 'scorecards' not in market:
+        
                     return 'Method of Victory'
                 
                 if any(x in market for x in ['ends in round', 'wins in round', 'wins inside distance']):
