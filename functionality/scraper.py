@@ -972,9 +972,14 @@ class fightOddsIOScraper(MMAScraper):
                 except:
                     current_market_keys = ['']
 
-                if any(x in market for x in ['ko', 'tko', 'dq', 'submission', 'wins by decision', 'decision']) and current_market_keys != 'h2h' and 'scorecards' not in market:
-        
+                # Method of Victory (checking this first)
+                mov_keywords = ['ko', 'tko', 'dq', 'submission', 'decision']
+                mov_pattern = re.compile(r'\b(' + '|'.join(mov_keywords) + r')(,|\b|/)')
+                if mov_pattern.search(market) and \
+                current_market_keys != 'h2h' and \
+                'scorecards' not in market:
                     return 'Method of Victory'
+
                 
                 if any(x in market for x in ['ends in round', 'wins in round', 'wins inside distance']):
                     return 'Round props'
