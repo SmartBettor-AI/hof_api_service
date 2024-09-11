@@ -1224,13 +1224,13 @@ class database():
     
 
     def get_MMA_game_data(self, gameId):
-      logger.info('start of mma_game_data db rq in db.py')
+      logger.info(f'start of mma_game_data db rq in db.py{time.time()}')
       with self.db_manager.create_session() as session:
         today = func.current_date()
         one_day_ago = func.now() - timedelta(days=1)
 
         # Subquery to get the most recent pulled_time for each game_id and market
-        logger.info('1')
+        logger.info(f'1{time.time()}')
         latest_odds = (
             select(
                 MMAOdds.game_id,
@@ -1247,7 +1247,7 @@ class database():
         )
 
         # Main query
-        logger.info('2')
+        logger.info(f'2{time.time()}')
         stmt = (
             select(
                 MMAOdds,
@@ -1265,7 +1265,7 @@ class database():
         )
 
         result = session.execute(stmt)
-        logger.info('3')
+        logger.info(f"3{time.time()}")
         
         data = [
             {
@@ -1288,7 +1288,7 @@ class database():
             }
             for mma_odds, my_game_id, my_event_id in result
         ]
-        logger.info('4')
+        logger.info(f'4{time.time()}')
 
         return data
    

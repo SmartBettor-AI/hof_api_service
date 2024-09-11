@@ -150,21 +150,21 @@ def get_MMA_Game_Data():
     
     # Check if game data is cached
     cached_data = redis_client.get(cache_key)
-    logger.info('start of mma_game_data request')
+    logger.info(f'start of mma_game_data request{time.time()}')
 
     if cached_data:
-        logger.info('Cached data returned')
+        logger.info(f'Cached data returned{time.time()}')
         # Return cached data if available
         return jsonify(jsonpickle.decode(cached_data))
 
     # Otherwise, query the database
-    logger.info('start of mma_game_data db rq')
+    logger.info(f'start of mma_game_data db rq{time.time()}')
     game_data = app.db.get_MMA_game_data(game_id)
-    logger.info('end of mma_game_data db rq')
+    logger.info(f'end of mma_game_data db rq{time.time()}')
 
     # Store the result in Redis with a timeout
     redis_client.set(cache_key, jsonpickle.encode(game_data), ex=700)
-    logger.info('set cache')
+    logger.info(f'set cache{time.time()}')
 
     return jsonify(game_data)
 
