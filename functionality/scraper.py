@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.chrome.options import Options
 from db_manager import DBManager
 from models import LoginInfo, MMAEvents, MMAOdds, MMAGames
-from sqlalchemy import create_engine, select, insert, MetaData, Table
+from sqlalchemy import create_engine, select, insert, MetaData, Table, and_
 from sqlalchemy.orm import aliased
 
 import pandas as pd
@@ -716,6 +716,104 @@ class fightOddsIOScraper(MMAScraper):
         logger.info('wrote the cache')
         return
     
+    def get_mma_game_data_for_cache(self):
+        ls = self.get_unique_game_ids()
+        for game_id in ls:
+            game_data = self.get_MMA_game_data(game_id)
+            cache_key = f"mma_game_data:{game_id}"
+            redis_client.delete(cache_key)
+            redis_client.set(cache_key, jsonpickle.encode(game_data), ex=1800)
+        logger.info('wrote all caches')
+
+
+
+        
+
+    
+    def get_unique_game_ids(self):
+        with self.db_manager.create_session() as session:
+            # SQLAlchemy query to get all unique game_ids
+            stmt = (
+                select(MMAOdds.game_id)
+                .distinct()
+            )
+            
+            result = session.execute(stmt)
+            
+            # Fetch all unique game_ids and return as a list
+            unique_game_ids = [row[0] for row in result]
+        
+        return unique_game_ids
+
+    def get_MMA_game_data(self, gameId):
+      logger.info(f'start of mma_game_data db rq in db.py{datetime.now()}')
+      with self.db_manager.create_session() as session:
+        today = func.current_date()
+        one_day_ago = func.now() - timedelta(days=1)
+
+        # Subquery to get the most recent pulled_time for each game_id and market
+        logger.info(f'1{datetime.now()}')
+        latest_odds = (
+            select(
+                MMAOdds.game_id,
+                MMAOdds.market,
+                func.max(MMAOdds.pulled_time).label('max_pulled_time')
+            )
+            .filter(and_(
+                MMAOdds.game_date >= today,
+                MMAOdds.pulled_time >= one_day_ago,
+                MMAOdds.game_id == gameId
+            ))
+            .group_by(MMAOdds.game_id, MMAOdds.market)
+            .subquery()
+        )
+
+        # Main query
+        logger.info(f'2{datetime.now()}')
+        stmt = (
+            select(
+                MMAOdds,
+                MMAGames.my_game_id,
+                MMAEvents.my_event_id
+            )
+            .join(latest_odds, and_(
+                MMAOdds.game_id == latest_odds.c.game_id,
+                MMAOdds.market == latest_odds.c.market,
+                MMAOdds.pulled_time == latest_odds.c.max_pulled_time
+            ))
+            .join(MMAGames, MMAOdds.game_id == MMAGames.id)
+            .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)
+            .filter(MMAOdds.game_id == gameId)
+        )
+
+        result = session.execute(stmt)
+        logger.info(f"3{datetime.now()}")
+        
+        data = [
+            {
+                'id': mma_odds.id,
+                'market': mma_odds.market,
+                'pulled_time': str(mma_odds.pulled_time),
+                'odds': mma_odds.odds,
+                'home_team': mma_odds.home_team,
+                'away_team': mma_odds.away_team,
+                'highest_bettable_odds': mma_odds.highest_bettable_odds,
+                'sportsbooks_used': mma_odds.sportsbooks_used,
+                'market_key': mma_odds.market_key,
+                'game_date': mma_odds.game_date,
+                'game_id': mma_odds.game_id,
+                'my_game_id': my_game_id,
+                'my_event_id': my_event_id,
+                'average_market_odds': mma_odds.average_market_odds,
+                'market_type': mma_odds.market_type,
+                'dropdown': mma_odds.dropdown,
+            }
+            for mma_odds, my_game_id, my_event_id in result
+        ]
+        logger.info(f'4{datetime.now()}')
+
+        return data
+   
     def get_mma_data(self):
       session = self.db_manager.create_session()
   
@@ -1330,6 +1428,7 @@ while True:
     fightOddsIO.scrape_event_data(i)
     fightOddsIO.format_odds()
     fightOddsIO.get_mma_data_for_cache()
+    fightOddsIO.get_mma_game_data_for_cache()
 
 
     # Uncomment the following lines to scrape events from BestFightOdds.com if we lose access to .io
