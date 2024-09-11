@@ -118,7 +118,6 @@ def retry_on_session_error(max_retries=3, delay=1):
 @app.route('/api/get_MMA_Data', methods=['GET'])
 def get_MMA_data():
     # Check if data is cached in Redis
-    logger.info('Game data')
     cache_key = "mma_data"
     cached_data = redis_client.get(cache_key)
 
@@ -151,16 +150,21 @@ def get_MMA_Game_Data():
     
     # Check if game data is cached
     cached_data = redis_client.get(cache_key)
+    logger.info('start of mma_game_data request')
 
     if cached_data:
+        logger.info('Cached data returned')
         # Return cached data if available
         return jsonify(jsonpickle.decode(cached_data))
 
     # Otherwise, query the database
+    logger.info('start of mma_game_data db rq')
     game_data = app.db.get_MMA_game_data(game_id)
+    logger.info('end of mma_game_data db rq')
 
     # Store the result in Redis with a timeout
     redis_client.set(cache_key, jsonpickle.encode(game_data), ex=700)
+    logger.info('set cache')
 
     return jsonify(game_data)
 

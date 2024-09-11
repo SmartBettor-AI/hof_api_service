@@ -29,6 +29,7 @@ from pytz import timezone
 
 import psutil
 process = psutil.Process(os.getpid())
+import time
 
 
 
@@ -1223,11 +1224,13 @@ class database():
     
 
     def get_MMA_game_data(self, gameId):
+      logger.info('start of mma_game_data db rq in db.py')
       with self.db_manager.create_session() as session:
         today = func.current_date()
         one_day_ago = func.now() - timedelta(days=1)
 
         # Subquery to get the most recent pulled_time for each game_id and market
+        logger.info('1')
         latest_odds = (
             select(
                 MMAOdds.game_id,
@@ -1244,6 +1247,7 @@ class database():
         )
 
         # Main query
+        logger.info('2')
         stmt = (
             select(
                 MMAOdds,
@@ -1261,6 +1265,7 @@ class database():
         )
 
         result = session.execute(stmt)
+        logger.info('3')
         
         data = [
             {
@@ -1283,6 +1288,7 @@ class database():
             }
             for mma_odds, my_game_id, my_event_id in result
         ]
+        logger.info('4')
 
         return data
    
