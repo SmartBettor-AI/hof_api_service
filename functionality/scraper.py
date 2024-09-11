@@ -865,6 +865,7 @@ class fightOddsIOScraper(MMAScraper):
 
 
     def categorize_markets(self, df):
+            wins_in_round_pattern = re.compile(r'wins in round \d+$')
             def categorize(row):
                 market = row['market'].lower()
                 
@@ -873,7 +874,7 @@ class fightOddsIOScraper(MMAScraper):
                 except:
                     current_market_keys = ['']
 
-                if any(x in market for x in ['ko', 'tko', 'dq', 'submission', 'wins by decision', 'decision']) and current_market_keys != 'h2h' and 'scorecards' not in market:
+                if any(x in market for x in ['ko', 'tko', 'dq', 'submission', 'wins by decision', 'decision']) and current_market_keys != 'h2h' and 'scorecards' not in market and not wins_in_round_pattern.search(market):
         
                     return 'Method of Victory'
                 
