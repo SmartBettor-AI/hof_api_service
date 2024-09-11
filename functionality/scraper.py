@@ -963,34 +963,31 @@ class fightOddsIOScraper(MMAScraper):
 
     # 
     def categorize_markets(self, df):
-        wins_in_round_pattern = re.compile(r'wins in round \d+$')
+            wins_in_round_pattern = re.compile(r'wins in round \d+$')
+            def categorize(row):
+                market = row['market'].lower()
+                
+                try:
+                    current_market_keys = row['market_key'].lower()
+                except:
+                    current_market_keys = ['']
+
+                if any(x in market for x in ['ko', 'tko', 'dq', 'submission', 'wins by decision', 'decision']) and current_market_keys != 'h2h' and 'scorecards' not in market:
         
-        def categorize(row):
-            market = row['market'].lower()
-            wins_in_round_pattern = re.compile(r'wins in round \d+(-\d+)?$')
-            
-            # Method of Victory (checking this first)
-            mov_keywords = ['ko', 'tko', 'dq', 'submission', 'decision']
-            mov_pattern = re.compile(r'\b(' + '|'.join(mov_keywords) + r')(,|\b|/)')
-            if mov_pattern.search(market) and \
-            market != 'h2h' and \
-            'scorecards' not in market:
-                return 'Method of Victory'
+                    return 'Method of Victory'
+                
+                if any(x in market for x in ['ends in round', 'wins in round', 'wins inside distance']):
+                    return 'Round props'
 
-            # Round props
-            if any(x in market for x in ['ends in round', 'wins in round', 'wins inside distance']):
-                return 'Round props'
+                if any(x in market for x in ['wins', 'draw', 'goes the distance', 'fight ends inside']) or market in ['over', 'under'] or any(x in current_market_keys for x in ['h2h', 'totals']) or any(x in market for x in ['scorecards = no action', 'ends in a draw', 'round']):
+                    return 'Fight lines'
 
-            # Fight lines
-            if any(x in market for x in ['wins', 'draw', 'goes the distance', 'fight ends inside']) or \
-            market in ['over', 'under'] or \
-            any(x in market for x in ['h2h', 'totals']) or \
-            any(x in market for x in ['scorecards = no action', 'ends in a draw', 'round']):
-                return 'Fight lines'
+                
+                return 'Other props'
 
-            return 'Other props'
-        df['market_type'] = df.apply(categorize, axis=1)
-        return df
+
+            df['market_type'] = df.apply(categorize, axis=1)
+            return df
     
     def categorize_dropdown(self, df):
             
