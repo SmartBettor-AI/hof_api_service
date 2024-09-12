@@ -1135,8 +1135,7 @@ class database():
                     'market': mma_odds.market,
                     'pulled_time': str(mma_odds.pulled_time),
                     'odds': mma_odds.odds,
-                    'home_team': mma_odds.home_team,
-                    'away_team': mma_odds.away_team,
+                    
                     'highest_bettable_odds': mma_odds.highest_bettable_odds,
                     'sportsbooks_used': mma_odds.sportsbooks_used,
                     'market_key': mma_odds.market_key,
@@ -1148,8 +1147,7 @@ class database():
                     'other_market': other_row.market,
                     'other_pulled_time': str(other_row.pulled_time),
                     'other_odds': other_row.odds,
-                    'other_home_team': other_row.home_team,
-                    'other_away_team': other_row.away_team,
+                    
                     'other_highest_bettable_odds': other_row.highest_bettable_odds,
                     'other_sportsbooks_used': other_row.sportsbooks_used,
                     'other_market_key': other_row.market_key,
@@ -1200,8 +1198,6 @@ class database():
                 'market': mma_odds.market,
                 'pulled_time': str(mma_odds.pulled_time),
                 'odds': mma_odds.odds,
-                'home_team': mma_odds.home_team,
-                'away_team': mma_odds.away_team,
                 'highest_bettable_odds': mma_odds.highest_bettable_odds,
                 'sportsbooks_used': mma_odds.sportsbooks_used,
                 'market_key': mma_odds.market_key,
