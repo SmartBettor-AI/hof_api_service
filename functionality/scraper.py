@@ -795,8 +795,6 @@ class fightOddsIOScraper(MMAScraper):
                 'market': mma_odds.market,
                 'pulled_time': str(mma_odds.pulled_time),
                 'odds': mma_odds.odds,
-                'home_team': mma_odds.home_team,
-                'away_team': mma_odds.away_team,
                 'highest_bettable_odds': mma_odds.highest_bettable_odds,
                 'sportsbooks_used': mma_odds.sportsbooks_used,
                 'market_key': mma_odds.market_key,
@@ -807,6 +805,8 @@ class fightOddsIOScraper(MMAScraper):
                 'average_market_odds': mma_odds.average_market_odds,
                 'market_type': mma_odds.market_type,
                 'dropdown': mma_odds.dropdown,
+                'favored_team': mma_odds.favored_team,
+                'underdog_team': mma_odds.underdog_team
             }
             for mma_odds, my_game_id, my_event_id in result
         ]
@@ -1181,8 +1181,6 @@ class fightOddsIOScraper(MMAScraper):
                     # Drop rows where all values in odds_cols are NaN
                     this_df = this_df.dropna(subset=odds_cols, how='all')
 
-                    this_df.to_csv('dropped_na.csv', index=False)
-
                 
                     # Calculate the maximum odds for each row   
                     this_df['highest_bettable_odds'] = this_df[odds_cols].max(axis=1)
@@ -1204,6 +1202,10 @@ class fightOddsIOScraper(MMAScraper):
 
                     this_df['market_key'] = this_df.apply(lambda row: self.market_key_map(row, first_total_flag), axis=1)
 
+
+                    this_df = self.get_favored_team(this_df)
+                    this_df.to_csv('aver_favorite.csv', index=False)
+
                     exclude_columns.append('market_key')
                     # Generate the `my_game_id` for the current row
 
@@ -1217,7 +1219,6 @@ class fightOddsIOScraper(MMAScraper):
 
                     this_df = self.mark_main_totals(this_df)
 
-                    this_df.to_csv('after_all_marking.csv', index = False)
 
                     
                     exclude_columns.append('game_id')
@@ -1231,8 +1232,6 @@ class fightOddsIOScraper(MMAScraper):
                                 'odds': row['odds'],
                                 'class_name': row['class_name'],
                                 'matchup': row['matchup'],
-                                'home_team': row['home_team'],
-                                'away_team': row['away_team'],
                                 'highest_bettable_odds': row['highest_bettable_odds'],
                                 'sportsbooks_used': str(row['sportsbooks_used']),
                                 'market_key': row['market_key'],
@@ -1243,7 +1242,9 @@ class fightOddsIOScraper(MMAScraper):
                                 'average_market_odds' : row['average_bettable_odds'],
                                 'market_type':row['market_type'],
                                 'dropdown': int(row['dropdown']),
-                                'pulled_id': row['pulled_id']
+                                'pulled_id': row['pulled_id'],
+                                'favored_team': row['favored_team'],
+                                'underdog_team': row['underdog_team'],
                             }
 
                             # Insert the row into the mma_odds table
@@ -1259,7 +1260,60 @@ class fightOddsIOScraper(MMAScraper):
 
 
 
+    def get_favored_team(self, this_df):
+        # Filter for h2h rows
+        h2h_df = this_df[this_df['market_key'] == 'h2h']
 
+        # Dictionary to store favored and underdog teams by game_id
+        team_mapping = {}
+
+        # List to hold the reordered h2h rows
+        reordered_groups = []
+
+        # Group by game_id and process each group
+        for game_id, group in h2h_df.groupby('game_id'):
+            # Ensure there are exactly two rows for comparison
+            if len(group) == 2:
+                # Sort by highest_bettable_odds to ensure the favored team comes first
+                group_sorted = group.sort_values(by='highest_bettable_odds', ascending=False)
+                
+                # Get the favored and underdog team based on the sorted order
+                favored_team = group_sorted.iloc[1]['market']
+                underdog_team = group_sorted.iloc[0]['market']
+                
+                # Store the favored and underdog teams in a dictionary for this game_id
+                team_mapping[game_id] = {
+                    'favored_team': favored_team,
+                    'underdog_team': underdog_team
+                }
+
+                # Add the reordered group to the list
+                reordered_groups.append(group_sorted)
+            else:
+                # Handle cases where there are not exactly 2 rows
+                team_mapping[game_id] = {
+                    'favored_team': None,
+                    'underdog_team': None
+                }
+
+        # Concatenate all reordered h2h groups into one DataFrame
+        reordered_h2h_df = pd.concat(reordered_groups)
+
+        # Now we apply the favored and underdog teams to the h2h_df using the mapping
+        reordered_h2h_df['favored_team'] = reordered_h2h_df['game_id'].map(lambda x: team_mapping[x]['favored_team'])
+        reordered_h2h_df['underdog_team'] = reordered_h2h_df['game_id'].map(lambda x: team_mapping[x]['underdog_team'])
+
+        # Merge the favored/underdog team mapping back into the original dataframe
+        fav_underdog_df = pd.DataFrame(team_mapping).T.reset_index().rename(columns={'index': 'game_id'})
+
+        # Merge favored/underdog teams into the original dataframe (for non-h2h rows too)
+        this_df = this_df.merge(fav_underdog_df, on='game_id', how='left')
+
+        # Replace the h2h rows in the original dataframe with the reordered ones
+        non_h2h_df = this_df[this_df['market_key'] != 'h2h']
+        this_df = pd.concat([non_h2h_df, reordered_h2h_df]).sort_index()
+
+        return this_df
 
     def find_fight_name_and_date(self, soup):
         outer_divs = soup.find_all("div", class_="MuiPaper-root")

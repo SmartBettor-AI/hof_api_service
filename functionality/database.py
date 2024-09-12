@@ -1224,13 +1224,12 @@ class database():
     
 
     def get_MMA_game_data(self, gameId):
-      logger.info(f'start of mma_game_data db rq in db.py{datetime.now()}')
+
       with self.db_manager.create_session() as session:
         today = func.current_date()
         one_day_ago = func.now() - timedelta(days=1)
 
         # Subquery to get the most recent pulled_time for each game_id and market
-        logger.info(f'1{datetime.now()}')
         latest_odds = (
             select(
                 MMAOdds.game_id,
@@ -1245,9 +1244,6 @@ class database():
             .group_by(MMAOdds.game_id, MMAOdds.market)
             .subquery()
         )
-
-        # Main query
-        logger.info(f'2{datetime.now()}')
         stmt = (
             select(
                 MMAOdds,
@@ -1262,10 +1258,10 @@ class database():
             .join(MMAGames, MMAOdds.game_id == MMAGames.id)
             .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)
             .filter(MMAOdds.game_id == gameId)
+            .order_by(MMAOdds.id)
         )
 
         result = session.execute(stmt)
-        logger.info(f"3{datetime.now()}")
         
         data = [
             {
@@ -1273,8 +1269,6 @@ class database():
                 'market': mma_odds.market,
                 'pulled_time': str(mma_odds.pulled_time),
                 'odds': mma_odds.odds,
-                'home_team': mma_odds.home_team,
-                'away_team': mma_odds.away_team,
                 'highest_bettable_odds': mma_odds.highest_bettable_odds,
                 'sportsbooks_used': mma_odds.sportsbooks_used,
                 'market_key': mma_odds.market_key,
@@ -1285,10 +1279,12 @@ class database():
                 'average_market_odds': mma_odds.average_market_odds,
                 'market_type': mma_odds.market_type,
                 'dropdown': mma_odds.dropdown,
+                'favored_team': mma_odds.favored_team,
+                'underdog_team': mma_odds.underdog_team
             }
             for mma_odds, my_game_id, my_event_id in result
         ]
-        logger.info(f'4{datetime.now()}')
+
 
         return data
    

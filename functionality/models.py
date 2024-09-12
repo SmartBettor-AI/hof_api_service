@@ -147,8 +147,6 @@ class MMAOdds(Base):
     odds = Column(JSON)
     class_name = Column(String(255))
     matchup = Column(String(255))
-    home_team = Column(String(255))
-    away_team = Column(String(255))
     highest_bettable_odds = Column(Numeric(10, 2))
     sportsbooks_used = Column(Text)
     market_key = Column(String(255))
@@ -160,6 +158,8 @@ class MMAOdds(Base):
     market_type = Column(String(255))
     dropdown = Column(Integer)
     pulled_id = Column(String(255))
+    favored_team = Column(String(255))
+    underdog_team = Column(String(255))
 
 class MMAGames(Base):
     __tablename__ = 'mma_games'
