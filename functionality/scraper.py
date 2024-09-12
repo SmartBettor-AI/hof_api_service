@@ -678,7 +678,7 @@ class fightOddsIOScraper(MMAScraper):
             # new_date = final_date + timedelta(days=1)
 
             # Format the new date as a string
-            final_date_str = new_date.strftime('%Y_%m_%d')
+            final_date_str = final_date.strftime('%Y_%m_%d')
             
             df['game_date'] =  final_date_str
 
