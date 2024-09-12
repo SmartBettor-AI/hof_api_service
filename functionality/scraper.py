@@ -674,8 +674,8 @@ class fightOddsIOScraper(MMAScraper):
 
             final_date = datetime(year, month, day)
 
-            # Subtract one day
-            new_date = final_date + timedelta(days=1)
+            # # add one day
+            # new_date = final_date + timedelta(days=1)
 
             # Format the new date as a string
             final_date_str = new_date.strftime('%Y_%m_%d')
