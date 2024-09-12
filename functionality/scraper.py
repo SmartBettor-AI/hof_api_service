@@ -978,7 +978,7 @@ class fightOddsIOScraper(MMAScraper):
                     return 'Method of Victory'
 
                 
-                if any(x in market for x in ['ends in round', 'wins in round', 'wins inside distance']):
+                if any(x in market for x in ['ends in round', 'wins in round', 'wins inside distance', 'starts round']):
                     return 'Round props'
 
                 if any(x in market for x in ['wins', 'draw', 'goes the distance', 'fight ends inside']) or market in ['over', 'under'] or any(x in current_market_keys for x in ['h2h', 'totals']) or any(x in market for x in ['scorecards = no action', 'ends in a draw', 'round']) or market.endswith('.5'):
