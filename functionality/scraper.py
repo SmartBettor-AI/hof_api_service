@@ -746,13 +746,13 @@ class fightOddsIOScraper(MMAScraper):
         return unique_game_ids
 
     def get_MMA_game_data(self, gameId):
-      logger.info(f'start of mma_game_data db rq in db.py{datetime.now()}')
+      
       with self.db_manager.create_session() as session:
         today = func.current_date()
         one_day_ago = func.now() - timedelta(days=1)
 
         # Subquery to get the most recent pulled_time for each game_id and market
-        logger.info(f'1{datetime.now()}')
+  
         latest_odds = (
             select(
                 MMAOdds.game_id,
@@ -769,7 +769,7 @@ class fightOddsIOScraper(MMAScraper):
         )
 
         # Main query
-        logger.info(f'2{datetime.now()}')
+
         stmt = (
             select(
                 MMAOdds,
@@ -787,7 +787,7 @@ class fightOddsIOScraper(MMAScraper):
         )
 
         result = session.execute(stmt)
-        logger.info(f"3{datetime.now()}")
+
         
         data = [
             {
@@ -810,7 +810,7 @@ class fightOddsIOScraper(MMAScraper):
             }
             for mma_odds, my_game_id, my_event_id in result
         ]
-        logger.info(f'4{datetime.now()}')
+
 
         return data
    
@@ -875,8 +875,7 @@ class fightOddsIOScraper(MMAScraper):
                     'market': mma_odds.market,
                     'pulled_time': str(mma_odds.pulled_time),
                     'odds': mma_odds.odds,
-                    'home_team': mma_odds.home_team,
-                    'away_team': mma_odds.away_team,
+                   
                     'highest_bettable_odds': mma_odds.highest_bettable_odds,
                     'sportsbooks_used': mma_odds.sportsbooks_used,
                     'market_key': mma_odds.market_key,
@@ -888,8 +887,7 @@ class fightOddsIOScraper(MMAScraper):
                     'other_market': other_row.market,
                     'other_pulled_time': str(other_row.pulled_time),
                     'other_odds': other_row.odds,
-                    'other_home_team': other_row.home_team,
-                    'other_away_team': other_row.away_team,
+                   
                     'other_highest_bettable_odds': other_row.highest_bettable_odds,
                     'other_sportsbooks_used': other_row.sportsbooks_used,
                     'other_market_key': other_row.market_key,
@@ -940,8 +938,7 @@ class fightOddsIOScraper(MMAScraper):
                 'market': mma_odds.market,
                 'pulled_time': str(mma_odds.pulled_time),
                 'odds': mma_odds.odds,
-                'home_team': mma_odds.home_team,
-                'away_team': mma_odds.away_team,
+                
                 'highest_bettable_odds': mma_odds.highest_bettable_odds,
                 'sportsbooks_used': mma_odds.sportsbooks_used,
                 'market_key': mma_odds.market_key,
