@@ -1443,7 +1443,7 @@ fightOddsIO = fightOddsIOScraper('https://fightodds.io/')
 i = 0
 while True:
     i += 1
-    # fightOddsIO.scrape_event_data(i)
+    fightOddsIO.scrape_event_data(i)
     fightOddsIO.format_odds()
     fightOddsIO.get_mma_data_for_cache()
     fightOddsIO.get_mma_game_data_for_cache()
