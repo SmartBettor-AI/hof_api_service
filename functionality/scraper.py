@@ -902,7 +902,7 @@ class fightOddsIOScraper(MMAScraper):
                 except:
                     current_market_keys = ['']
 
-                if 'Significant' in market:
+                if 'significant' in market:
                     return 'Other props'
 
                 # Method of Victory (checking this first)
