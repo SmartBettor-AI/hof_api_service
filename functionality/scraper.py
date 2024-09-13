@@ -902,6 +902,9 @@ class fightOddsIOScraper(MMAScraper):
                 except:
                     current_market_keys = ['']
 
+                if 'Significant' in market:
+                    return 'Other props'
+
                 # Method of Victory (checking this first)
                 mov_keywords = ['ko', 'tko', 'dq', 'submission', 'decision']
                 mov_pattern = re.compile(r'\b(' + '|'.join(mov_keywords) + r')(,|\b|/)')
@@ -914,8 +917,6 @@ class fightOddsIOScraper(MMAScraper):
                 if any(x in market for x in ['ends in round', 'wins in round', 'wins inside distance', 'starts round',"doesn't start round", "doesn't win in round" ]):
                     return 'Round props'
                 
-                if 'Significant' in market:
-                    return 'Other props'
 
                 if any(x in market for x in ['wins', 'draw', 'goes the distance', 'fight ends inside']) or market in ['over', 'under'] or any(x in current_market_keys for x in ['h2h', 'totals']) or any(x in market for x in ['scorecards = no action', 'ends in a draw', 'round']) or market.endswith('.5'):
                     return 'Fight lines'
