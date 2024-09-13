@@ -235,6 +235,8 @@ class BestFightOddsScraper(MMAScraper):
 
         file_prefix = f"{os.getcwd()}/mma_raw_odds/"
 
+        total_df = pd.DataFrame()
+
         # this is for MLB and it splits into pitching and batting data, instead we're not gonna aplit it up but instead concatenate all of them together because overlapping column names can be handled now 
         for file in files:
             if file.endswith('.csv'):
@@ -317,81 +319,11 @@ class BestFightOddsScraper(MMAScraper):
 
                                 this_df.at[idx, 'event_id'] = int(event_id)
 
-
-
-                    ###Convert odds
-                    exclude_columns = ['class_name', 'matchup', 'home_team', 'away_team', 'market', 'game_date', 'game_id', 'fight_name', 'event_id']
-                    for col in this_df.columns:
-                        if col not in exclude_columns:
-                            this_df[col] = this_df[col].apply(self.american_to_decimal)
-
-                    ##Hightest bettable odds 
-                    odds_cols = [col for col in this_df.columns if col not in exclude_columns]
-                    print(odds_cols)
-
-                    #Drop empty bad rows 
-                    this_df[odds_cols] = this_df[odds_cols].replace('', np.nan)
-
-                    # Drop rows where all values in odds_cols are NaN
-                    this_df = this_df.dropna(subset=odds_cols, how='all')
-
-                    this_df.to_csv('dropped_na.csv', index=False)
+                    total_df = pd.concat([total_df, this_df])
+        
+        return total_df
 
                 
-                    # Calculate the maximum odds for each row   
-                    this_df['highest_bettable_odds'] = this_df[odds_cols].max(axis=1)
-
-                    exclude_columns.append('highest_bettable_odds')
-
-                    # Calculate the average bettable odds, ignoring NaN values
-                    this_df['average_bettable_odds'] = this_df[odds_cols].mean(axis=1, skipna=True)
-
-                    # Exclude the new column from further processing if needed
-                    exclude_columns.append('average_bettable_odds')
-
-
-                    this_df['sportsbooks_used'] = this_df.apply(lambda row: self.find_matching_columns(row, odds_cols), axis=1)
-                    
-                    exclude_columns.append('sportsbooks_used')
-                    #set bools for each total over and under
-                    first_totals_over_under = [False, False]
-                    this_df['market_key'] = this_df.apply(lambda row: self.market_key_map(row, first_totals_over_under), axis=1)
-
-                    exclude_columns.append('market_key')
-                    # Generate the `my_game_id` for the current row
-
-                    this_df = this_df.replace({np.nan: None})
-                    this_df['odds'] = this_df.apply(lambda row: json.dumps({col: row[col] for col in odds_cols}), axis=1)
-                    # this_df.to_csv('after_all_collection.csv', index = False)
-
-                    
-                    exclude_columns.append('game_id')
-
-
-                    with self.db_manager.get_engine().begin() as conn:
-                        for _, row in this_df.iterrows():
-                            # Create a dictionary for each row
-                            row_dict = {
-                                'market': row['market'],
-                                'odds': row['odds'],
-                                'class_name': row['class_name'],
-                                'matchup': row['matchup'],
-                                'home_team': row['home_team'],
-                                'away_team': row['away_team'],
-                                'highest_bettable_odds': row['highest_bettable_odds'],
-                                'sportsbooks_used': str(row['sportsbooks_used']),
-                                'market_key': row['market_key'],
-                                'game_date': row['game_date'],
-                                'game_id': row['game_id'],
-                                'event_id' : row['event_id'],
-                                'pulled_time': datetime.now(),
-                                'average_market_odds' : row['average_bettable_odds']
-                            }
-
-                            # Insert the row into the mma_odds table
-                            stmt = insert(self.mma_odds).values(**row_dict)
-                            conn.execute(stmt)
-
 
 
 
@@ -1070,6 +1002,8 @@ class fightOddsIOScraper(MMAScraper):
 
         pulled_id = uuid.uuid4()
 
+        total_df = pd.DataFrame()
+
 
 
         # this is for MLB and it splits into pitching and batting data, instead we're not gonna aplit it up but instead concatenate all of them together because overlapping column names can be handled now 
@@ -1163,91 +1097,121 @@ class fightOddsIOScraper(MMAScraper):
                                 this_df.at[idx, 'event_id'] = int(event_id)
 
 
+                    total_df = pd.concat([total_df, this_df])
 
-                    ###Convert odds
-                    exclude_columns = ['class_name', 'matchup', 'home_team', 'away_team', 'market', 'game_date', 'game_id', 'fight_name', 'event_id', 'pulled_id']
-                    for col in this_df.columns:
-                        if col not in exclude_columns:
-                            this_df[col] = this_df[col].apply(self.american_to_decimal)
+        total_df.to_csv('total_df.csv', index=False)
 
-                    ##Hightest bettable odds 
-                    odds_cols = [col for col in this_df.columns if col not in exclude_columns]
+        scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
+        events = scraper.scrape_event_data(i)
+        bestFightOdds = scraper.format_odds()
+        bestFightOdds.to_csv('bestFightOdds.csv',index=False)
 
-                    #Drop empty bad rows 
-                    this_df[odds_cols] = this_df[odds_cols].replace('', np.nan)
+        merged_df = pd.merge(total_df, bestFightOdds, on=['market', 'game_id'], how='left', suffixes=('', '_bestFightOdds'))
 
-                    # Drop rows where all values in odds_cols are NaN
-                    this_df = this_df.dropna(subset=odds_cols, how='all')
-
+        # Drop columns from bestFightOdds that conflict with total_df
+        # This will remove columns like 'team_bestFightOdds', keeping only the ones from total_df
+        for col in merged_df.columns:
+            if col.endswith('_bestFightOdds'):
+                # Find the base column without the suffix
+                base_col = col.replace('_bestFightOdds', '')
                 
-                    # Calculate the maximum odds for each row   
-                    this_df['highest_bettable_odds'] = this_df[odds_cols].max(axis=1)
+                # Check if the base column exists in the merged dataframe
+                if base_col in merged_df.columns:
+                    # Fill NaNs in the base column with values from the bestFightOdds column
+                    merged_df[base_col].fillna(merged_df[col], inplace=True)
+                
+                # After filling, drop the _bestFightOdds column
+                merged_df.drop(col, axis=1, inplace=True)
 
-                    exclude_columns.append('highest_bettable_odds')
-
-                    # Calculate the average bettable odds, ignoring NaN values
-                    this_df['average_bettable_odds'] = this_df[odds_cols].mean(axis=1, skipna=True)
-
-                    # Exclude the new column from further processing if needed
-                    exclude_columns.append('average_bettable_odds')
-
-
-                    this_df['sportsbooks_used'] = this_df.apply(lambda row: self.find_matching_columns(row, odds_cols), axis=1)
-                    
-                    exclude_columns.append('sportsbooks_used')
-
-                    first_total_flag = [False, False]
-
-                    this_df['market_key'] = this_df.apply(lambda row: self.market_key_map(row, first_total_flag), axis=1)
+                # Save or return the final merged DataFrame
+                merged_df.to_csv('merged_output.csv', index=False)
 
 
-                    this_df = self.get_favored_team(this_df)
-                    this_df.to_csv('aver_favorite.csv', index=False)
 
-                    exclude_columns.append('market_key')
-                    # Generate the `my_game_id` for the current row
+        ###Convert odds
+        exclude_columns = ['class_name', 'matchup', 'home_team', 'away_team', 'market', 'game_date', 'game_id', 'fight_name', 'event_id', 'pulled_id']
+        for col in merged_df.columns:
+            if col not in exclude_columns:
+                merged_df[col] = merged_df[col].apply(self.american_to_decimal)
 
-                    this_df = this_df.replace({np.nan: None})
-                    this_df['odds'] = this_df.apply(lambda row: json.dumps({col: row[col] for col in odds_cols}), axis=1)
-                    # this_df.to_csv('after_all_collection.csv', index = False)
+        ##Hightest bettable odds 
+        odds_cols = [col for col in merged_df.columns if col not in exclude_columns]
 
-                    
-                    this_df = self.categorize_markets(this_df)
-                    this_df = self.categorize_dropdown(this_df)
+        #Drop empty bad rows 
+        merged_df[odds_cols] = merged_df[odds_cols].replace('', np.nan)
 
-                    this_df = self.mark_main_totals(this_df)
+        # Drop rows where all values in odds_cols are NaN
+        merged_df = merged_df.dropna(subset=odds_cols, how='all')
+
+    
+        # Calculate the maximum odds for each row   
+        merged_df['highest_bettable_odds'] = merged_df[odds_cols].max(axis=1)
+
+        exclude_columns.append('highest_bettable_odds')
+
+        # Calculate the average bettable odds, ignoring NaN values
+        merged_df['average_bettable_odds'] = merged_df[odds_cols].mean(axis=1, skipna=True)
+
+        # Exclude the new column from further processing if needed
+        exclude_columns.append('average_bettable_odds')
 
 
-                    
-                    exclude_columns.append('game_id')
+        merged_df['sportsbooks_used'] = merged_df.apply(lambda row: self.find_matching_columns(row, odds_cols), axis=1)
+        
+        exclude_columns.append('sportsbooks_used')
+
+        first_total_flag = [False, False]
+
+        merged_df['market_key'] = merged_df.apply(lambda row: self.market_key_map(row, first_total_flag), axis=1)
 
 
-                    with self.db_manager.get_engine().begin() as conn:
-                        for _, row in this_df.iterrows():
-                            # Create a dictionary for each row
-                            row_dict = {
-                                'market': row['market'],
-                                'odds': row['odds'],
-                                'class_name': row['class_name'],
-                                'matchup': row['matchup'],
-                                'highest_bettable_odds': row['highest_bettable_odds'],
-                                'sportsbooks_used': str(row['sportsbooks_used']),
-                                'market_key': row['market_key'],
-                                'game_date': row['game_date'],
-                                'game_id': row['game_id'],
-                                'event_id' : row['event_id'],
-                                'pulled_time': datetime.now(),
-                                'average_market_odds' : row['average_bettable_odds'],
-                                'market_type':row['market_type'],
-                                'dropdown': int(row['dropdown']),
-                                'pulled_id': row['pulled_id'],
-                                'favored_team': row['favored_team'],
-                                'underdog_team': row['underdog_team'],
-                            }
+        merged_df = self.get_favored_team(merged_df)
+        merged_df.to_csv('aver_favorite.csv', index=False)
 
-                            # Insert the row into the mma_odds table
-                            stmt = insert(self.mma_odds).values(**row_dict)
-                            conn.execute(stmt)
+        exclude_columns.append('market_key')
+        # Generate the `my_game_id` for the current row
+
+        merged_df = merged_df.replace({np.nan: None})
+        merged_df['odds'] = merged_df.apply(lambda row: json.dumps({col: row[col] for col in odds_cols}), axis=1)
+        # this_df.to_csv('after_all_collection.csv', index = False)
+
+        
+        merged_df = self.categorize_markets(merged_df)
+        merged_df = self.categorize_dropdown(merged_df)
+
+        merged_df = self.mark_main_totals(merged_df)
+
+
+        
+        exclude_columns.append('game_id')
+
+
+        with self.db_manager.get_engine().begin() as conn:
+            for _, row in merged_df.iterrows():
+                # Create a dictionary for each row
+                row_dict = {
+                    'market': row['market'],
+                    'odds': row['odds'],
+                    'class_name': row['class_name'],
+                    'matchup': row['matchup'],
+                    'highest_bettable_odds': row['highest_bettable_odds'],
+                    'sportsbooks_used': str(row['sportsbooks_used']),
+                    'market_key': row['market_key'],
+                    'game_date': row['game_date'],
+                    'game_id': row['game_id'],
+                    'event_id' : row['event_id'],
+                    'pulled_time': datetime.now(),
+                    'average_market_odds' : row['average_bettable_odds'],
+                    'market_type':row['market_type'],
+                    'dropdown': int(row['dropdown']),
+                    'pulled_id': row['pulled_id'],
+                    'favored_team': row['favored_team'],
+                    'underdog_team': row['underdog_team'],
+                }
+
+                # Insert the row into the mma_odds table
+                stmt = insert(self.mma_odds).values(**row_dict)
+                conn.execute(stmt)
 
 
 
@@ -1479,16 +1443,10 @@ fightOddsIO = fightOddsIOScraper('https://fightodds.io/')
 i = 0
 while True:
     i += 1
-    fightOddsIO.scrape_event_data(i)
+    # fightOddsIO.scrape_event_data(i)
     fightOddsIO.format_odds()
     fightOddsIO.get_mma_data_for_cache()
     fightOddsIO.get_mma_game_data_for_cache()
-
-
-    # Uncomment the following lines to scrape events from BestFightOdds.com if we lose access to .io
-    # events = scraper.scrape_event_data(i)
-    # scraper.format_odds()
-    #timeout for 5 minutes
     
     print("Events Done!")
     time.sleep(300)
