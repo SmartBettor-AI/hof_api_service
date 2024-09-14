@@ -1057,11 +1057,11 @@ class fightOddsIOScraper(MMAScraper):
                                  current_home_fighter = row['market']
 
                                  if str(current_home_fighter) < str(current_away_fighter):
-                                    team_1 = current_home_fighter
-                                    team_2 = current_away_fighter
+                                    team_1 = str(current_home_fighter)
+                                    team_2 = str(current_away_fighter)
                                  else:
-                                    team_1 = current_away_fighter
-                                    team_2 = current_home_fighter
+                                    team_1 = str(current_away_fighter)
+                                    team_2 = str(current_home_fighter)
                                  this_df.at[idx-1, 'matchup'] = team_1 + 'v.' + team_2
                                  this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
                       
