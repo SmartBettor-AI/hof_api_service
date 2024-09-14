@@ -1133,7 +1133,7 @@ class fightOddsIOScraper(MMAScraper):
 
 
         ###Convert odds
-        merged_df = merged_df.drop(columns=['bovada'])
+        merged_df = merged_df.drop(columns=['Bovada'])
         exclude_columns = ['class_name', 'matchup', 'home_team', 'away_team', 'market', 'game_date', 'game_id', 'fight_name', 'event_id', 'pulled_id']
         for col in merged_df.columns:
             if col not in exclude_columns:
