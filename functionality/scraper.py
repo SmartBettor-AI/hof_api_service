@@ -240,7 +240,7 @@ class BestFightOddsScraper(MMAScraper):
         # this is for MLB and it splits into pitching and batting data, instead we're not gonna aplit it up but instead concatenate all of them together because overlapping column names can be handled now 
         for file in files:
             if file.endswith('.csv'):
-                if 'Future' not in file:
+                if 'Future' not in file and 'Contender' not in file:
                     print(f'Formatting {file}...')
                     file_name = (file_prefix+file).strip()
                     this_df = pd.read_csv(file_name)
@@ -303,12 +303,12 @@ class BestFightOddsScraper(MMAScraper):
                                  
                                  player_count = 0
                         else:
-                                if current_home_fighter < current_away_fighter:
-                                    team_1 = current_home_fighter
-                                    team_2 = current_away_fighter
+                                if str(current_home_fighter) < str(current_away_fighter):
+                                    team_1 = str(current_home_fighter)
+                                    team_2 = str(current_away_fighter)
                                 else:
-                                    team_1 = current_away_fighter
-                                    team_2 = current_home_fighter
+                                    team_1 = str(current_away_fighter)
+                                    team_2 = str(current_home_fighter)
 
                                 this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
                                 this_df.at[idx, 'away_team'] = team_2
