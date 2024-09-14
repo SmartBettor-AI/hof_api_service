@@ -1013,7 +1013,7 @@ class fightOddsIOScraper(MMAScraper):
         # this is for MLB and it splits into pitching and batting data, instead we're not gonna aplit it up but instead concatenate all of them together because overlapping column names can be handled now 
         for file in files:
             if file.endswith('.csv'):
-                if 'Future' not in file:
+                if 'Future' not in file and 'Contender' not in file:
                     print(f'Formatting {file}...')
                     file_name = (file_prefix+file).strip()
                     this_df = pd.read_csv(file_name)
