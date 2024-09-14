@@ -1056,7 +1056,7 @@ class fightOddsIOScraper(MMAScraper):
                                  player_count = 2
                                  current_home_fighter = row['market']
 
-                                 if current_home_fighter < current_away_fighter:
+                                 if str(current_home_fighter) < str(current_away_fighter):
                                     team_1 = current_home_fighter
                                     team_2 = current_away_fighter
                                  else:
@@ -1133,6 +1133,7 @@ class fightOddsIOScraper(MMAScraper):
 
 
         ###Convert odds
+        merged_df = merged_df.drop(columns=['bovada'])
         exclude_columns = ['class_name', 'matchup', 'home_team', 'away_team', 'market', 'game_date', 'game_id', 'fight_name', 'event_id', 'pulled_id']
         for col in merged_df.columns:
             if col not in exclude_columns:
