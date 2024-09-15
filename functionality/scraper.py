@@ -1110,7 +1110,11 @@ class fightOddsIOScraper(MMAScraper):
         bestFightOdds = scraper.format_odds()
         bestFightOdds.to_csv('bestFightOdds.csv',index=False)
 
-        merged_df = total_df.merge(bestFightOdds, on=['market', 'game_id'], how='left', suffixes=('', '_bestFightOdds'))
+        if not bestFightOdds.empty:
+            merged_df = total_df.merge(bestFightOdds, on=['market', 'game_id'], how='left', suffixes=('', '_bestFightOdds'))
+        else:
+            print("bestFightOdds is empty. Skipping merge operation.")
+            merged_df = total_df.copy()
 
         # Drop columns from bestFightOdds that conflict with total_df
         # This will remove columns like 'team_bestFightOdds', keeping only the ones from total_df
