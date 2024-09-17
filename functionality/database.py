@@ -1095,7 +1095,7 @@ class database():
                 func.max(latest_odds.pulled_time).label('max_pulled_time')
             )
             .where(latest_odds.game_date >= today, latest_odds.market_key.in_(['h2h']))
-            # .where(latest_odds.pulled_time >= one_day_ago)
+            .where(latest_odds.pulled_time >= one_day_ago)
             .group_by(latest_odds.game_id, latest_odds.market)
             .subquery()
         )
@@ -1223,7 +1223,7 @@ class database():
 
       with self.db_manager.create_session() as session:
         today = func.current_date()
-        two_day_ago = func.now() - timedelta(days=2)
+        one_day_ago = func.now() - timedelta(days=1)
 
         # Subquery to get the most recent pulled_time for each game_id and market
         latest_odds = (
@@ -1234,7 +1234,7 @@ class database():
             )
             .filter(and_(
                 MMAOdds.game_date >= today,
-                # MMAOdds.pulled_time >= two_day_ago,
+                MMAOdds.pulled_time >= one_day_ago,
                 MMAOdds.game_id == gameId
             ))
             .group_by(MMAOdds.game_id, MMAOdds.market)

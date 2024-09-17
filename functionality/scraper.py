@@ -695,7 +695,7 @@ class fightOddsIOScraper(MMAScraper):
       
       with self.db_manager.create_session() as session:
         today = func.current_date()
-        two_day_ago = func.now() - timedelta(days=2)
+        one_day_ago = func.now() - timedelta(days=1)
 
         # Subquery to get the most recent pulled_time for each game_id and market
   
@@ -707,7 +707,7 @@ class fightOddsIOScraper(MMAScraper):
             )
             .filter(and_(
                 MMAOdds.game_date >= today,
-                # MMAOdds.pulled_time >= two_day_ago,
+                MMAOdds.pulled_time >= one_day_ago,
                 MMAOdds.game_id == gameId
             ))
             .group_by(MMAOdds.game_id, MMAOdds.market)
@@ -781,7 +781,7 @@ class fightOddsIOScraper(MMAScraper):
                 func.max(latest_odds.pulled_time).label('max_pulled_time')
             )
             .where(latest_odds.game_date >= today, latest_odds.market_key.in_(['h2h']))
-            # .where(latest_odds.pulled_time >= one_day_ago)
+            .where(latest_odds.pulled_time >= one_day_ago)
             .group_by(latest_odds.game_id, latest_odds.market)
             .subquery()
         )
@@ -873,7 +873,7 @@ class fightOddsIOScraper(MMAScraper):
             .join(MMAGames, MMAOdds.game_id == MMAGames.id)
             .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)
             .filter(totals_subquery.c.rank == 1)  # Only get the most recent for each game_id and market
-            # .filter(MMAOdds.pulled_time >= one_day_ago)
+            .filter(MMAOdds.pulled_time >= one_day_ago)
           )
 
         result2 = session.execute(stmt2)
@@ -1161,7 +1161,6 @@ class fightOddsIOScraper(MMAScraper):
 
 
         ###Convert odds
-        merged_df = merged_df.drop(columns=['Bovada'])
         exclude_columns = ['class_name', 'matchup', 'home_team', 'away_team', 'market', 'game_date', 'game_id', 'fight_name', 'event_id', 'pulled_id']
         for col in merged_df.columns:
             if col not in exclude_columns:
