@@ -171,21 +171,6 @@ def get_MMA_Game_Data():
 
 
 
-# @app.route('/api/get_MMA_Data', methods=['GET'])
-# def get_MMA_data():
-#     event_data = app.db.get_mma_data()
-#     return jsonify(event_data)
-
-
-# @app.route('/api/get_MMA_Game_Data', methods = ['GET'])
-# def get_MMA_Game_Data():
-#     game_id = request.args.get('gameId')
-#     game_data = app.db.get_MMA_game_data(game_id)
-#     logger.info('Game data')
-#     logger.info(game_data)
-#     return jsonify(game_data)
-
-
 
 if __name__ == '__main__':
 
