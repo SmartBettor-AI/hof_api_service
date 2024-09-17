@@ -326,8 +326,11 @@ class BestFightOddsScraper(MMAScraper):
                         try:
                             os.remove(file_name)
                             print(f"Deleted {file_name} due to error")
+                            continue
                         except OSError as delete_error:
                             print(f"Error deleting {file_name}: {delete_error}")
+                            continue
+
 
             total_df = pd.concat([total_df, this_df])
         
@@ -1117,8 +1120,10 @@ class fightOddsIOScraper(MMAScraper):
                         try:
                                 os.remove(file_name)
                                 print(f"Deleted {file_name} due to error")
+                                continue
                         except OSError as delete_error:
                                 print(f"Error deleting {file_name}: {delete_error}")
+                                continue
 
                     total_df = pd.concat([total_df, this_df])
 
