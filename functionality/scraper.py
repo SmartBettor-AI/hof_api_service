@@ -240,86 +240,96 @@ class BestFightOddsScraper(MMAScraper):
         # this is for MLB and it splits into pitching and batting data, instead we're not gonna aplit it up but instead concatenate all of them together because overlapping column names can be handled now 
         for file in files:
             if file.endswith('.csv'):
-                if 'Future' not in file and 'Contender' not in file:
+                if 'Future' not in file:
                     print(f'Formatting {file}...')
                     file_name = (file_prefix+file).strip()
-                    this_df = pd.read_csv(file_name)
                     try:
-                        os.remove(file_name)
-                        print(f'Deleted {file_name}')
-                    except OSError as e:
-                        print(f"Error deleting {file_name}: {e}")
-                    this_df['matchup'] = ""
-                    for col in this_df.columns:
-                        if this_df[col].dtype == 'object':  # Check if column contains string data
-                            this_df[col] = this_df[col].apply(lambda x: self.convert_fraction_to_float(x) if isinstance(x, str) else x)
+                        this_df = pd.read_csv(file_name)
+                        try:
+                            os.remove(file_name)
+                            print(f'Deleted {file_name}')
+                        except OSError as e:
+                            print(f"Error deleting {file_name}: {e}")
+                        this_df['matchup'] = ""
+                        for col in this_df.columns:
+                            if this_df[col].dtype == 'object':  # Check if column contains string data
+                                this_df[col] = this_df[col].apply(lambda x: self.convert_fraction_to_float(x) if isinstance(x, str) else x)
 
 
-                    this_df.replace({'▼': '', '▲': ''}, regex=True, inplace=True)
-    
+                        this_df.replace({'▼': '', '▲': ''}, regex=True, inplace=True)
+        
 
-                    current_away_fighter = ''
-                    current_home_fighter = ''
-                    player_count = 0
-                    this_df.to_csv('before_loop.csv', index=False)
-                    for idx, row in this_df.iterrows():
-                        this_df.to_csv('how_is_this_working.csv', index=False)
-                        if pd.isna(row['class_name']) or row['class_name'].strip() == '':
-                            if player_count == 0:
-                                player_count = 1
-                                current_away_fighter = row['market']
-                            elif player_count == 1:   
-                                 player_count = 2
-                                 current_home_fighter = row['market']
+                        current_away_fighter = ''
+                        current_home_fighter = ''
+                        player_count = 0
+                        this_df.to_csv('before_loop.csv', index=False)
+                        for idx, row in this_df.iterrows():
+                            this_df.to_csv('how_is_this_working.csv', index=False)
+                            if pd.isna(row['class_name']) or row['class_name'].strip() == '':
+                                if player_count == 0:
+                                    player_count = 1
+                                    current_away_fighter = row['market']
+                                elif player_count == 1:   
+                                    player_count = 2
+                                    current_home_fighter = row['market']
 
-                                 if current_home_fighter < current_away_fighter:
-                                    team_1 = current_home_fighter
-                                    team_2 = current_away_fighter
-                                 else:
-                                    team_1 = current_away_fighter
-                                    team_2 = current_home_fighter
+                                    if current_home_fighter < current_away_fighter:
+                                        team_1 = current_home_fighter
+                                        team_2 = current_away_fighter
+                                    else:
+                                        team_1 = current_away_fighter
+                                        team_2 = current_home_fighter
 
-                                 this_df.at[idx-1, 'matchup'] = team_1 + 'v.' + team_2
-                                 this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
-                      
-                                 this_df.at[idx-1, 'home_team'] = team_1
-                                 this_df.at[idx, 'home_team'] = team_1
-       
-                                 this_df.at[idx-1, 'away_team'] = team_2
-                                 this_df.at[idx, 'away_team'] = team_2
+                                    this_df.at[idx-1, 'matchup'] = team_1 + 'v.' + team_2
+                                    this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
+                        
+                                    this_df.at[idx-1, 'home_team'] = team_1
+                                    this_df.at[idx, 'home_team'] = team_1
+        
+                                    this_df.at[idx-1, 'away_team'] = team_2
+                                    this_df.at[idx, 'away_team'] = team_2
 
-                                 my_game_id = team_1.replace(' ', '_') + '_' + team_2.replace(' ', '_') + '_' + row['game_date'].replace(' ', '_').split('_')[0]
-                                 
-                                 game_id, event_id = self.get_or_create_ids(my_game_id, row['fight_name'])
+                                    my_game_id = team_1.replace(' ', '_') + '_' + team_2.replace(' ', '_') + '_' + row['game_date'].replace(' ', '_').split('_')[0]
+                                    
+                                    game_id, event_id = self.get_or_create_ids(my_game_id, row['fight_name'])
 
 
-                                 this_df.at[idx - 1, 'game_id'] = int(game_id)
-                                 this_df.at[idx, 'game_id'] = int(game_id)
-                                 
+                                    this_df.at[idx - 1, 'game_id'] = int(game_id)
+                                    this_df.at[idx, 'game_id'] = int(game_id)
+                                    
 
-                                 this_df.at[idx - 1, 'event_id'] = int(event_id)
-                                 this_df.at[idx, 'event_id'] = int(event_id)
+                                    this_df.at[idx - 1, 'event_id'] = int(event_id)
+                                    this_df.at[idx, 'event_id'] = int(event_id)
 
-                                 
-                                 player_count = 0
-                        else:
-                                if str(current_home_fighter) < str(current_away_fighter):
-                                    team_1 = str(current_home_fighter)
-                                    team_2 = str(current_away_fighter)
-                                else:
-                                    team_1 = str(current_away_fighter)
-                                    team_2 = str(current_home_fighter)
+                                    
+                                    player_count = 0
+                            else:
+                                    if str(current_home_fighter) < str(current_away_fighter):
+                                        team_1 = str(current_home_fighter)
+                                        team_2 = str(current_away_fighter)
+                                    else:
+                                        team_1 = str(current_away_fighter)
+                                        team_2 = str(current_home_fighter)
 
-                                this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
-                                this_df.at[idx, 'away_team'] = team_2
-                                this_df.at[idx, 'home_team'] = team_1
-                                my_game_id = team_1.replace(' ', '_') + '_' + team_2.replace(' ', '_') + '_' + row['game_date'].replace(' ', '_').split('_')[0]
-                                game_id, event_id = self.get_or_create_ids(my_game_id, row['fight_name'])
-                                this_df.at[idx, 'game_id'] = int(game_id)
+                                    this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
+                                    this_df.at[idx, 'away_team'] = team_2
+                                    this_df.at[idx, 'home_team'] = team_1
+                                    my_game_id = team_1.replace(' ', '_') + '_' + team_2.replace(' ', '_') + '_' + row['game_date'].replace(' ', '_').split('_')[0]
+                                    game_id, event_id = self.get_or_create_ids(my_game_id, row['fight_name'])
+                                    this_df.at[idx, 'game_id'] = int(game_id)
 
-                                this_df.at[idx, 'event_id'] = int(event_id)
+                                    this_df.at[idx, 'event_id'] = int(event_id)
+   
+                    except Exception as e:
+                        print(f"Error processing {file_name}: {e}")
+                        # Delete the problematic file
+                        try:
+                            os.remove(file_name)
+                            print(f"Deleted {file_name} due to error")
+                        except OSError as delete_error:
+                            print(f"Error deleting {file_name}: {delete_error}")
 
-                    total_df = pd.concat([total_df, this_df])
+            total_df = pd.concat([total_df, this_df])
         
         return total_df
 
@@ -1013,93 +1023,102 @@ class fightOddsIOScraper(MMAScraper):
         # this is for MLB and it splits into pitching and batting data, instead we're not gonna aplit it up but instead concatenate all of them together because overlapping column names can be handled now 
         for file in files:
             if file.endswith('.csv'):
-                if 'Future' not in file and 'Contender' not in file:
+                if 'Future' not in file:
                     print(f'Formatting {file}...')
-                    file_name = (file_prefix+file).strip()
-                    this_df = pd.read_csv(file_name)
                     try:
-                        os.remove(file_name)
-                        print(f'Deleted {file_name}')
-                    except OSError as e:
-                        print(f"Error deleting {file_name}: {e}")
+                        file_name = (file_prefix+file).strip()
+                        this_df = pd.read_csv(file_name)
+                        try:
+                            os.remove(file_name)
+                            print(f'Deleted {file_name}')
+                        except OSError as e:
+                            print(f"Error deleting {file_name}: {e}")
 
-                    #format fight_name 
-                    this_df['fight_name'] = this_df['fight_name'].apply(self.process_fight_name)
+                        #format fight_name 
+                        this_df['fight_name'] = this_df['fight_name'].apply(self.process_fight_name)
 
-                    #add pull identifier for future merge use
-                    this_df['pulled_id'] = pulled_id
-                    this_df.to_csv('test_here.csv')
-
-
-                    this_df['matchup'] = ""
-                    for col in this_df.columns:
-                        if this_df[col].dtype == 'object':  # Check if column contains string data
-                            this_df[col] = this_df[col].apply(lambda x: self.convert_fraction_to_float(x) if isinstance(x, str) else x)
+                        #add pull identifier for future merge use
+                        this_df['pulled_id'] = pulled_id
+                        this_df.to_csv('test_here.csv')
 
 
-                    this_df.replace({'▼': '', '▲': ''}, regex=True, inplace=True)
-
-                    
-    
-
-                    current_away_fighter = ''
-                    current_home_fighter = ''
-                    player_count = 0
-                    this_df.to_csv('before_loop.csv', index=False)
-                    for idx, row in this_df.iterrows():
-                        this_df.to_csv('how_is_this_working.csv', index=False)
-                        if pd.isna(row['class_name']) or row['class_name'].strip() == '':
-                            if player_count == 0:
-                                player_count = 1
-                                current_away_fighter = row['market']
-                            elif player_count == 1:   
-                                 player_count = 2
-                                 current_home_fighter = row['market']
-
-                                 if str(current_home_fighter) < str(current_away_fighter):
-                                    team_1 = str(current_home_fighter)
-                                    team_2 = str(current_away_fighter)
-                                 else:
-                                    team_1 = str(current_away_fighter)
-                                    team_2 = str(current_home_fighter)
-                                 this_df.at[idx-1, 'matchup'] = team_1 + 'v.' + team_2
-                                 this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
-                      
-                                 this_df.at[idx-1, 'home_team'] = team_1
-                                 this_df.at[idx, 'home_team'] = team_1
-       
-                                 this_df.at[idx-1, 'away_team'] = team_2
-                                 this_df.at[idx, 'away_team'] = team_2
-                                 my_game_id = team_1.replace(' ', '_') + '_' + team_2.replace(' ', '_') + '_' + row['game_date'].replace(' ', '_').split('_')[0]
-                                 
-                                 game_id, event_id = self.get_or_create_ids(my_game_id, row['fight_name'])
+                        this_df['matchup'] = ""
+                        for col in this_df.columns:
+                            if this_df[col].dtype == 'object':  # Check if column contains string data
+                                this_df[col] = this_df[col].apply(lambda x: self.convert_fraction_to_float(x) if isinstance(x, str) else x)
 
 
-                                 this_df.at[idx - 1, 'game_id'] = int(game_id)
-                                 this_df.at[idx, 'game_id'] = int(game_id)
-                                 
+                        this_df.replace({'▼': '', '▲': ''}, regex=True, inplace=True)
 
-                                 this_df.at[idx - 1, 'event_id'] = int(event_id)
-                                 this_df.at[idx, 'event_id'] = int(event_id)
+                        
+        
 
-                                 
-                                 player_count = 0
-                        else:
-                                if current_home_fighter < current_away_fighter:
-                                    team_1 = current_home_fighter
-                                    team_2 = current_away_fighter
-                                else:
-                                    team_1 = current_away_fighter
-                                    team_2 = current_home_fighter
-                                this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
-                                this_df.at[idx, 'away_team'] = team_2
-                                this_df.at[idx, 'home_team'] = team_1
-                                my_game_id = team_1.replace(' ', '_') + '_' + team_2.replace(' ', '_') + '_' + row['game_date'].replace(' ', '_').split('_')[0]
-                                game_id, event_id = self.get_or_create_ids(my_game_id, row['fight_name'])
-                                this_df.at[idx, 'game_id'] = int(game_id)
+                        current_away_fighter = ''
+                        current_home_fighter = ''
+                        player_count = 0
+                        this_df.to_csv('before_loop.csv', index=False)
+                        for idx, row in this_df.iterrows():
+                            this_df.to_csv('how_is_this_working.csv', index=False)
+                            if pd.isna(row['class_name']) or row['class_name'].strip() == '':
+                                if player_count == 0:
+                                    player_count = 1
+                                    current_away_fighter = row['market']
+                                elif player_count == 1:   
+                                    player_count = 2
+                                    current_home_fighter = row['market']
 
-                                this_df.at[idx, 'event_id'] = int(event_id)
+                                    if str(current_home_fighter) < str(current_away_fighter):
+                                        team_1 = str(current_home_fighter)
+                                        team_2 = str(current_away_fighter)
+                                    else:
+                                        team_1 = str(current_away_fighter)
+                                        team_2 = str(current_home_fighter)
+                                    this_df.at[idx-1, 'matchup'] = team_1 + 'v.' + team_2
+                                    this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
+                        
+                                    this_df.at[idx-1, 'home_team'] = team_1
+                                    this_df.at[idx, 'home_team'] = team_1
+        
+                                    this_df.at[idx-1, 'away_team'] = team_2
+                                    this_df.at[idx, 'away_team'] = team_2
+                                    my_game_id = team_1.replace(' ', '_') + '_' + team_2.replace(' ', '_') + '_' + row['game_date'].replace(' ', '_').split('_')[0]
+                                    
+                                    game_id, event_id = self.get_or_create_ids(my_game_id, row['fight_name'])
 
+
+                                    this_df.at[idx - 1, 'game_id'] = int(game_id)
+                                    this_df.at[idx, 'game_id'] = int(game_id)
+                                    
+
+                                    this_df.at[idx - 1, 'event_id'] = int(event_id)
+                                    this_df.at[idx, 'event_id'] = int(event_id)
+
+                                    
+                                    player_count = 0
+                            else:
+                                    if current_home_fighter < current_away_fighter:
+                                        team_1 = current_home_fighter
+                                        team_2 = current_away_fighter
+                                    else:
+                                        team_1 = current_away_fighter
+                                        team_2 = current_home_fighter
+                                    this_df.at[idx, 'matchup'] = team_1 + 'v.' + team_2
+                                    this_df.at[idx, 'away_team'] = team_2
+                                    this_df.at[idx, 'home_team'] = team_1
+                                    my_game_id = team_1.replace(' ', '_') + '_' + team_2.replace(' ', '_') + '_' + row['game_date'].replace(' ', '_').split('_')[0]
+                                    game_id, event_id = self.get_or_create_ids(my_game_id, row['fight_name'])
+                                    this_df.at[idx, 'game_id'] = int(game_id)
+
+                                    this_df.at[idx, 'event_id'] = int(event_id)
+
+                    except Exception as e:
+                        print(f"Error processing {file_name}: {e}")
+                            # Delete the problematic file
+                        try:
+                                os.remove(file_name)
+                                print(f"Deleted {file_name} due to error")
+                        except OSError as delete_error:
+                                print(f"Error deleting {file_name}: {delete_error}")
 
                     total_df = pd.concat([total_df, this_df])
 
