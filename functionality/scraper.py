@@ -332,7 +332,7 @@ class BestFightOddsScraper(MMAScraper):
                             continue
 
 
-            total_df = pd.concat([total_df, this_df])
+                    total_df = pd.concat([total_df, this_df])
         
         return total_df
 
