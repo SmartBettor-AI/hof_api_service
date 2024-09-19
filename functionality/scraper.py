@@ -1198,6 +1198,12 @@ class fightOddsIOScraper(MMAScraper):
 
         merged_df = self.get_favored_team(merged_df)
         merged_df.to_csv('aver_favorite.csv', index=False)
+        # Step 1: Identify game_ids where the 'market' is null or an empty string
+        invalid_game_ids = merged_df.loc[merged_df['market'].isnull() | (merged_df['market'] == ''), 'game_id'].unique()
+
+# Step 2: Remove rows where the 'game_id' is in the list of invalid game_ids
+        merged_df = merged_df[~merged_df['game_id'].isin(invalid_game_ids)]
+
 
         exclude_columns.append('market_key')
         # Generate the `my_game_id` for the current row
