@@ -1127,11 +1127,15 @@ class fightOddsIOScraper(MMAScraper):
                     total_df = pd.concat([total_df, this_df])
 
         total_df.to_csv('total_df.csv', index=False)
+        try:
 
-        scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
-        events = scraper.scrape_event_data(i)
-        bestFightOdds = scraper.format_odds()
-        bestFightOdds.to_csv('bestFightOdds.csv',index=False)
+            scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
+            events = scraper.scrape_event_data(i)
+            bestFightOdds = scraper.format_odds()
+            bestFightOdds.to_csv('bestFightOdds.csv',index=False)
+        except Exception as e:
+            print(f"Error scraping best fight odds: {e}")
+            
 
         if not bestFightOdds.empty:
             merged_df = total_df.merge(bestFightOdds, on=['market', 'game_id'], how='left', suffixes=('', '_bestFightOdds'))
