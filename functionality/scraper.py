@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 import re
 import json
 import numpy as np
-import cfscrape
-
 import time
 import random
 import http.client
@@ -496,6 +494,7 @@ class fightOddsIOScraper(MMAScraper):
                 full_url = self.url + div.get('href')[1:]
                 if 'odds/' in full_url:
                     self.get_odds_per_page(full_url)
+                    
 
 
 
