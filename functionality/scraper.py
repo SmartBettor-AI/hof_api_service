@@ -1127,20 +1127,22 @@ class fightOddsIOScraper(MMAScraper):
                     total_df = pd.concat([total_df, this_df])
 
         total_df.to_csv('total_df.csv', index=False)
-        try:
 
+        bestFightOdds = None
+
+        try:
             scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
             events = scraper.scrape_event_data(i)
-            bestFightOdds = scraper.format_odds()
-            bestFightOdds.to_csv('bestFightOdds.csv',index=False)
+            bestFightOdds = scraper.format_odds()  # This may raise an error
+            bestFightOdds.to_csv('bestFightOdds.csv', index=False)
         except Exception as e:
             print(f"Error scraping best fight odds: {e}")
-            
 
-        if not bestFightOdds.empty:
+        # Check if bestFightOdds was successfully created
+        if bestFightOdds is not None and not bestFightOdds.empty:
             merged_df = total_df.merge(bestFightOdds, on=['market', 'game_id'], how='left', suffixes=('', '_bestFightOdds'))
         else:
-            print("bestFightOdds is empty. Skipping merge operation.")
+            print("bestFightOdds is empty or was not created. Skipping merge operation.")
             merged_df = total_df.copy()
 
         # Drop columns from bestFightOdds that conflict with total_df
