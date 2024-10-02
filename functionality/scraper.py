@@ -1394,6 +1394,7 @@ class fightOddsIOScraper(MMAScraper):
         else:
             # Remove date information if there are no colons
             return re.sub(pattern, '', name).strip()
+        
     
     def replace_fraction(self,symbol):
         """Replace fraction symbol ½ with its decimal equivalent."""
