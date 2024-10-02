@@ -1140,7 +1140,14 @@ class fightOddsIOScraper(MMAScraper):
             print(f"Error scraping best fight odds: {e}")
 
         # Check if bestFightOdds was successfully created
-        if bestFightOdds is not None and not bestFightOdds.empty:
+        if (
+                bestFightOdds is not None 
+                and not bestFightOdds.empty 
+                and 'market' in total_df.columns 
+                and 'game_id' in total_df.columns 
+                and 'market' in bestFightOdds.columns 
+                and 'game_id' in bestFightOdds.columns
+            ):
             merged_df = total_df.merge(bestFightOdds, on=['market', 'game_id'], how='left', suffixes=('', '_bestFightOdds'))
         else:
             print("bestFightOdds is empty or was not created. Skipping merge operation.")
