@@ -1059,9 +1059,7 @@ class fightOddsIOScraper(MMAScraper):
                         current_away_fighter = ''
                         current_home_fighter = ''
                         player_count = 0
-                        this_df.to_csv('before_loop.csv', index=False)
                         for idx, row in this_df.iterrows():
-                            this_df.to_csv('how_is_this_working.csv', index=False)
                             if pd.isna(row['class_name']) or row['class_name'].strip() == '':
                                 if player_count == 0:
                                     player_count = 1
@@ -1385,10 +1383,16 @@ class fightOddsIOScraper(MMAScraper):
     def process_fight_name(self,name):
         pattern = r'(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}$'
 
-        if ':' in name:
-                            # Split by ':' and get the first part
-            return name.split(':')[0]
+        parts = name.split(':')
+    
+        if len(parts) > 2:
+            # Return the first two parts if there are three or more segments
+            return ':'.join(parts[:2]).strip()
+        elif len(parts) == 2:
+            # Return the first part if there are two segments
+            return parts[0].strip()
         else:
+            # Remove date information if there are no colons
             return re.sub(pattern, '', name).strip()
     
     def replace_fraction(self,symbol):
