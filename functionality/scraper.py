@@ -695,7 +695,7 @@ class fightOddsIOScraper(MMAScraper):
       
       with self.db_manager.create_session() as session:
         today = func.current_date()
-        one_day_ago = func.now() - timedelta(days=1)
+        one_day_ago = datetime.now() - timedelta(days=1)
 
         # Subquery to get the most recent pulled_time for each game_id and market
   
@@ -766,7 +766,7 @@ class fightOddsIOScraper(MMAScraper):
       
       try:
         today = func.current_date()
-        one_day_ago = func.now() - timedelta(days=1)
+        one_day_ago = datetime.now() - timedelta(days=1)
 
         latest_odds = aliased(MMAOdds)
         other_side = aliased(MMAOdds)
