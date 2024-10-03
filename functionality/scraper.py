@@ -99,15 +99,18 @@ class BestFightOddsScraper(MMAScraper):
         api_key_2 = os.environ.get("scraping_ant_key2")
         api_key_3 = os.environ.get("scraping_ant_key3")
         api_key_4 = os.environ.get("scraping_ant_key4")
+        api_key_5 = os.environ.get("scraping_ant_key5")
+        api_key_6 = os.environ.get("scraping_ant_ke6")
+        api_key_7 = os.environ.get("scraping_ant_key7")
 
-        api_keys = [api_key_3, api_key_4, api_key_2,api_key_1
-                            ]
-        api_key =api_keys[i % len(api_keys)]
+        api_keys = [api_key_5, api_key_6, api_key_7, api_key_3, api_key_4, api_key_2, api_key_1]
+        
 
         retries = 0
         max_retries = 5
         while retries < max_retries:
             try:
+                api_key =api_keys[i % len(api_keys)]
                 conn = http.client.HTTPSConnection("api.scrapingant.com")
                 conn.request("GET", f"/v2/general?url={self.url}&x-api-key={api_key}")
                 
@@ -131,6 +134,7 @@ class BestFightOddsScraper(MMAScraper):
                     delay = random.uniform(1, 5)
                     print(f"Retrying in {delay:.2f} seconds...")
                     time.sleep(delay)
+                    i += 1
                 else:
                     print("Max retries reached. Exiting.")
                     raise
@@ -448,14 +452,15 @@ class fightOddsIOScraper(MMAScraper):
             api_key_3 = os.environ.get("scraping_ant_key3")
             api_key_4 = os.environ.get("scraping_ant_key4")
             api_key_5 = os.environ.get("scraping_ant_key5")
+            api_key_6 = os.environ.get("scraping_ant_key6")
+            api_key_7 = os.environ.get("scraping_ant_key7")
             
-            api_keys = [api_key_5, api_key_3, api_key_4, api_key_2,api_key_1
-                                ]
-            api_key =api_keys[i % len(api_keys)]
+            api_keys = [api_key_6, api_key_7, api_key_5, api_key_3, api_key_4, api_key_2,api_key_1]
 
             retries = 0
             max_retries = 5
             while retries < max_retries:
+                api_key =api_keys[i % len(api_keys)]
                 try:
                     conn = http.client.HTTPSConnection("api.scrapingant.com")
                     conn.request("GET", f"/v2/general?url={self.url}&x-api-key={api_key}")
@@ -481,6 +486,7 @@ class fightOddsIOScraper(MMAScraper):
                         delay = random.uniform(1, 5)
                         print(f"Retrying in {delay:.2f} seconds...")
                         time.sleep(delay)
+                        i+=1
                     else:
                         print("Max retries reached. Exiting.")
                         raise
@@ -501,16 +507,7 @@ class fightOddsIOScraper(MMAScraper):
 
     def get_odds_per_page(self, url):
         try:
-
-            api_key_1 = os.environ.get("scraping_ant_key1")
-            api_key_2 = os.environ.get("scraping_ant_key2")
-            api_key_3 = os.environ.get("scraping_ant_key3")
-            api_key_4 = os.environ.get("scraping_ant_key4")
             driver = webdriver.Chrome(service=Service(self.driver_path),options=self.options)
-
-            api_keys = [api_key_3, api_key_4, api_key_2,api_key_1
-                                ]
-            api_key =api_keys[i % len(api_keys)]
 
             driver.get(url)
 
@@ -600,7 +597,7 @@ class fightOddsIOScraper(MMAScraper):
 
             # Step 2: Drop rows where all specified columns are NaN
             df = df.dropna(subset=columns_to_check, how='all')
-            df = df.drop(columns=['Bovada'])
+            # df = df.drop(columns=['Bovada'])
 
             name_and_date = self.find_fight_name_and_date(soup)
             df['fight_name'] = name_and_date[0]
