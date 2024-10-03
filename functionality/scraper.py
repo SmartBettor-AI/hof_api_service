@@ -915,6 +915,10 @@ class fightOddsIOScraper(MMAScraper):
                 except:
                     current_market_keys = ['']
 
+                if "distance" in market:
+                    return 'Distance (Y/N)'
+                
+
                 if 'significant' in market:
                     return 'Other props'
 
@@ -1231,6 +1235,9 @@ class fightOddsIOScraper(MMAScraper):
         merged_df = self.mark_main_totals(merged_df)
 
 
+
+
+
         
         exclude_columns.append('game_id')
 
@@ -1269,7 +1276,12 @@ class fightOddsIOScraper(MMAScraper):
 
              
 
-
+    def add_priority_column(self, merged_df):
+        # Function to extract priority number from 'market' and add a 'priority' column
+        merged_df['priority'] = merged_df['market'].apply(
+            lambda x: int(re.search(r'\d+', x).group()) if re.search(r'\d+', x) else None
+        )
+        return merged_df
 
     def get_favored_team(self, this_df):
         # Filter for h2h rows
@@ -1396,7 +1408,7 @@ class fightOddsIOScraper(MMAScraper):
             return re.sub(pattern, '', name).strip()
         
     
-    
+
     def replace_fraction(self,symbol):
         """Replace fraction symbol ½ with its decimal equivalent."""
         return symbol.replace("½", ".5")
