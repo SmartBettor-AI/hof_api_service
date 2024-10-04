@@ -111,6 +111,7 @@ class BestFightOddsScraper(MMAScraper):
         while retries < max_retries:
             try:
                 api_key =api_keys[i % len(api_keys)]
+                logger.info(i)
                 conn = http.client.HTTPSConnection("api.scrapingant.com")
                 conn.request("GET", f"/v2/general?url={self.url}&x-api-key={api_key}")
                 
@@ -461,6 +462,7 @@ class fightOddsIOScraper(MMAScraper):
             max_retries = 5
             while retries < max_retries:
                 api_key =api_keys[i % len(api_keys)]
+                logger.info(i)
                 try:
                     conn = http.client.HTTPSConnection("api.scrapingant.com")
                     conn.request("GET", f"/v2/general?url={self.url}&x-api-key={api_key}")
