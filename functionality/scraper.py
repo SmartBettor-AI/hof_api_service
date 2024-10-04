@@ -1511,10 +1511,26 @@ fightOddsIO = fightOddsIOScraper('https://fightodds.io/')
 i = 0
 while True:
     i += 1
-    fightOddsIO.scrape_event_data(i)
-    fightOddsIO.format_odds()
-    fightOddsIO.get_mma_data_for_cache()
-    fightOddsIO.get_mma_game_data_for_cache()
+    try:
+        fightOddsIO.scrape_event_data(i)
+    except Exception as e:
+        print(f"Error occurred while scraping event {i}: {e}")
+        continue
+    try:
+        fightOddsIO.format_odds()
+    except Exception as e:
+        print(f"Error occurred while formatting odds for event {i}: {e}")
+        continue
+    try:
+        fightOddsIO.get_mma_data_for_cache()
+    except Exception as e:
+        print(f"Error occurred while getting MMA data for event {i}: {e}")
+        continue
+    try:
+        fightOddsIO.get_mma_game_data_for_cache()
+    except Exception as e:
+        print(f"Error occurred while getting MMA game data for event {i}: {e}")
+        continue
     
     print("Events Done!")
     time.sleep(300)
