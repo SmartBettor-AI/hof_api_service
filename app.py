@@ -321,7 +321,7 @@ def register_email():
 
     finally:
         session.close()
-@app.route('/market_view_success')
+@app.route('/api/market_view_success')
 def market_view_success():
     email = request.args.get('email')
 
@@ -352,7 +352,7 @@ def market_view_success():
     return render_template('market_view.html')  
 
 # Route for Register
-@app.route('/register')
+@app.route('/api/register')
 def register():
     return render_template('register.html')  # Or redirect
 
