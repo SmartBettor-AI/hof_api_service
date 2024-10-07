@@ -180,11 +180,11 @@ def google_auth():
     email = data['email']
     name = data['name']
 
-    session = app.db_manager.create_session()
+    db_session = app.db_manager.create_session()
 
     try:
         # Check if the user exists
-        user = session.query(LoginInfoHOF).filter_by(uid=uid).first()
+        user = db_session.query(LoginInfoHOF).filter_by(uid=uid).first()
 
         if user:
             # User exists; check if they have paid
@@ -198,15 +198,15 @@ def google_auth():
         else:
             # Register the new Google user
             new_user = LoginInfoHOF(uid=uid, email=email, name=name, subscription_status='unpaid')
-            session.add(new_user)
-            session.commit()
+            db_session.add(new_user)
+            db_session.commit()
 
     except Exception as e:
-        session.rollback()
+        db_session.rollback()
         return jsonify({'error': str(e)}), 500
 
     finally:
-        session.close()
+        db_session.close()
 
     # Stripe checkout session for unpaid users
     try:
@@ -223,7 +223,7 @@ def google_auth():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+ '?email={email}',
+            success_url=url_for('market_view_success', _external=True),
             cancel_url=url_for('register', _external=True),
             metadata={'uid': uid}
         )
@@ -241,11 +241,11 @@ def login_email():
     email = data['email']
     password = data['password']
 
-    session = app.db_manager.create_session()
+    db_session = app.db_manager.create_session()
 
     try:
         # Check if the user exists by email
-        user = session.query(LoginInfoHOF).filter_by(email=email).first()
+        user = db_session.query(LoginInfoHOF).filter_by(email=email).first()
 
         if user and check_password_hash(user.password, password):
             if user.subscription_status == 'paid':
@@ -261,7 +261,7 @@ def login_email():
         return jsonify({'error': str(e)}), 500
 
     finally:
-        session.close()
+        db_session.close()
 
 @app.route('/api/register_email', methods=['POST'])
 def register_email():
@@ -270,11 +270,11 @@ def register_email():
     password = data['password']
     name = data['name']
 
-    session = app.db_manager.create_session()
+    db_session = app.db_manager.create_session()
 
     try:
         # Check if the user already exists
-        user = session.query(LoginInfoHOF).filter_by(email=email).first()
+        user = db_session.query(LoginInfoHOF).filter_by(email=email).first()
 
         if user:
             return jsonify({'error': 'User already exists'}), 400
@@ -290,12 +290,13 @@ def register_email():
             password=hashed_password,
             subscription_status='unpaid'
         )
-        session.add(new_user)
-        session.commit()
+        db_session.add(new_user)
+        db_session.commit()
 
         # Start Stripe checkout process
         stripe_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
+            allow_promotion_codes=True,
             line_items=[{
                 'price_data': {
                     'currency': 'usd',
@@ -307,7 +308,7 @@ def register_email():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+ f'?email={email}',
+            success_url=url_for('market_view_success', _external=True)+f'?email={email}',
             cancel_url=url_for('register', _external=True),
             metadata={'email': email}
         )
@@ -316,45 +317,120 @@ def register_email():
         return jsonify({'id': stripe_session.id})
 
     except Exception as e:
-        session.rollback()
+        db_session.rollback()
         return jsonify({'error': str(e)}), 500
 
     finally:
-        session.close()
+        db_session.close()
 @app.route('/api/market_view_success')
 def market_view_success():
     email = request.args.get('email')
-
-    if email:
-        session = app.db_manager.create_session()
-
-        try:
-            # Update the subscription_status to 'paid' for the user with the given email
-            user = session.query(LoginInfoHOF).filter_by(email=email).first()
-            
-            if user:
-                user.subscription_status = 'paid'
-                session.commit()
-
-            else:
-                return jsonify({'error': 'User not found'}), 404
-
-        except Exception as e:
-            session.rollback()
-            return jsonify({'error': str(e)}), 500
-
-        finally:
-            session.close()
-
-    else:
-        return jsonify({'error': 'Email not provided'}), 400
-
+    print(email)
     return render_template('market_view.html')  
 
 # Route for Register
 @app.route('/api/register')
 def register():
     return render_template('register.html')  # Or redirect
+
+
+
+
+
+@app.route('/api/stripe_dup_wbhk', methods=['POST'])
+def stripe_dup_wbhk():
+    logger.info(f"dup webhook hit")
+    event = None
+    payload = request.data
+    sig_header = request.headers['STRIPE_SIGNATURE']
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, os.environ.get('dev_stripe_webhook_dup_secret')
+        )
+    except ValueError as e:
+        # Invalid payload
+        logger.info('Invalid Payload')
+        raise e
+    except stripe.error.SignatureVerificationError as e:
+        logger.info('Signature verification')
+        # Invalid signature
+        raise 
+
+    # Handle the event
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        logger.info(f"registered that it is checkout session completed")
+        logger.info(session)
+        handle_checkout_session_completed(session)
+
+    return jsonify({'status': 'success'}), 200
+
+
+def handle_checkout_session_completed(session):
+    # Get customer info from the session
+    customer_id = session['customer']
+    email = session['customer_details']['email']
+    logger.info(f"{email} of checkout session")
+
+    # Check if an existing customer already exists based on email
+    existing_customer = find_existing_customer_by_email(email)
+    logger.info(f"{existing_customer} is there customer already")
+
+    if existing_customer:
+        # Finally, delete the existing customer so that there is only the most recent one
+        stripe.Customer.delete(existing_customer.id)
+        logger.info(f"Deleted old existing customer {existing_customer.id}")
+    else:
+        # If no existing customer, just proceed with the subscription created during the checkout session
+        logger.info(f"New customer created with email {email}")
+
+
+def find_existing_customer_by_email(email):
+
+    try:
+        # List customers by email
+        customers = stripe.Customer.list(email=email, limit=100)
+        logger.info("Customers")
+
+        if customers and len(customers) > 1:
+            logger.info(f"Multiple customers found for email {email}. Total: {len(customers.data)}")
+            # Sort customers by creation date (newest first)
+            customers.data.sort(key=lambda c: c.created, reverse=True)
+            return customers.data[1]  # Return the second customer
+        return None
+    except Exception as e:
+        logger.info(f"Error finding customer by email: {e}")
+        return None
+
+
+def find_active_subscription_for_customer(customer_id):
+    try:
+        # List active subscriptions for the customer
+        subscriptions = stripe.Subscription.list(customer=customer_id, status='active', limit=1).data
+        trialing_subscriptions = stripe.Subscription.list(customer=customer_id, status='trialing').data
+        if subscriptions:
+            return subscriptions[0]
+        elif trialing_subscriptions:
+            return trialing_subscriptions[0]
+        return None
+    except Exception as e:
+        logger.info(f"Error finding active subscription: {e}")
+        return None
+
+
+def update_subscription_to_new_product(subscription_id, price_id):
+    try:
+        # Modify the existing subscription with a new price ID (product)
+        stripe.Subscription.modify(
+            subscription_id,
+            items=[{
+                'id': stripe.Subscription.retrieve(subscription_id)['items']['data'][0]['id'],
+                'price': price_id,
+            }]
+        )
+    except Exception as e:
+         logger.info(f"Error updating subscription: {e}")
 
 
 if __name__ == '__main__':
