@@ -307,10 +307,11 @@ def register_email():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('success', _external=True),
-            cancel_url=url_for('cancel', _external=True),
+            success_url=url_for('market_view_success', _external=True)+ '?email={email}',
+            cancel_url=url_for('register', _external=True),
             metadata={'email': email}
         )
+
 
         return jsonify({'id': stripe_session.id})
 
@@ -321,7 +322,7 @@ def register_email():
     finally:
         session.close()
 @app.route('/market_view_success')
-def market_view():
+def market_view_success():
     email = request.args.get('email')
 
     if email:
