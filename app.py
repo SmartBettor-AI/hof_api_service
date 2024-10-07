@@ -240,6 +240,9 @@ def login_email():
     data = request.get_json()
     email = data['email']
     password = data['password']
+    logger.info(f'login_email request {datetime.now()}')
+    logger.info(f'{password}, {email}')
+
 
     db_session = app.db_manager.create_session()
 
@@ -260,6 +263,7 @@ def login_email():
             else:
                 return jsonify({'error': 'Invalid credentials'}), 401
         else:
+            logger.info('here')
             return jsonify({'error': 'User not found'}), 404
 
     except Exception as e:
