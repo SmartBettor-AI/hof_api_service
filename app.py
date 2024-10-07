@@ -244,9 +244,10 @@ def login_email():
     db_session = app.db_manager.create_session()
 
     try:
+        logger.info('before user definitions')
         # Check if the user exists by email
         user = db_session.query(LoginInfoHOF).filter_by(email=email).first()
-
+        logger.info('after user definitions')
         if user:
             # Check if the password matches
             if check_password_hash(user.password, password):
