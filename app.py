@@ -223,7 +223,7 @@ def google_auth():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+f"?email={email}",
+            success_url=url_for('market_view_success', _external=True)+ f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}",
             cancel_url=url_for('register', _external=True),
             metadata={'uid': uid}
         )
@@ -308,7 +308,7 @@ def register_email():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+f"?email={email}",
+            success_url=url_for('market_view_success', _external=True)+f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}",
             cancel_url=url_for('register', _external=True),
             metadata={'email': email}
         )
@@ -324,32 +324,43 @@ def register_email():
         db_session.close()
 @app.route('/api/market_view_success')
 def market_view_success():
+    session_id = request.args.get('session_id')
     email = request.args.get('email')
-    logger.info(email)
-    if email:
-        session = app.db_manager.create_session()
 
-        try:
-            # Update the subscription_status to 'paid' for the user with the given email
-            user = session.query(LoginInfoHOF).filter_by(email=email).first()
-            
-            if user:
-                user.subscription_status = 'paid'
-                session.commit()
+    if not session_id:
+        return jsonify({'error': 'Session ID not provided'}), 400
 
-            else:
-                return jsonify({'error': 'User not found'}), 404
+    try:
+        # Retrieve the Stripe session to verify payment success
+        stripe_session = stripe.checkout.Session.retrieve(session_id)
 
-        except Exception as e:
-            session.rollback()
-            return jsonify({'error': str(e)}), 500
+        if stripe_session.payment_status == 'paid':
+            session = app.db_manager.create_session()
 
-        finally:
-            session.close()
+            try:
+                # Update the subscription_status to 'paid' for the user with the given email
+                user = session.query(LoginInfoHOF).filter_by(email=email).first()
+                
+                if user:
+                    user.subscription_status = 'paid'
+                    session.commit()
+                else:
+                    return jsonify({'error': 'User not found'}), 404
 
-    else:
-        return jsonify({'error': 'Email not provided'}), 400
-    return redirect(f'https://homeoffightpicks.com/market_view')
+            except Exception as e:
+                session.rollback()
+                return jsonify({'error': str(e)}), 500
+
+            finally:
+                session.close()
+
+            return redirect(f'https://homeoffightpicks.com/market_view')
+
+        else:
+            return jsonify({'error': 'Payment not completed'}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
  
 
 # Route for Register
