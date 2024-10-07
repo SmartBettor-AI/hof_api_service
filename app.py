@@ -223,7 +223,7 @@ def google_auth():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view', _external=True),
+            success_url=url_for('market_view_success', _external=True)+ '?email={email}',
             cancel_url=url_for('register', _external=True),
             metadata={'uid': uid}
         )
@@ -320,9 +320,35 @@ def register_email():
 
     finally:
         session.close()
-@app.route('/market_view')
+@app.route('/market_view_success')
 def market_view():
-    return render_template('market_view.html')  # Or redirect
+    email = request.args.get('email')
+
+    if email:
+        session = app.db_manager.create_session()
+
+        try:
+            # Update the subscription_status to 'paid' for the user with the given email
+            user = session.query(LoginInfoHOF).filter_by(email=email).first()
+            
+            if user:
+                user.subscription_status = 'paid'
+                session.commit()
+
+            else:
+                return jsonify({'error': 'User not found'}), 404
+
+        except Exception as e:
+            session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+        finally:
+            session.close()
+
+    else:
+        return jsonify({'error': 'Email not provided'}), 400
+
+    return render_template('market_view.html')  
 
 # Route for Register
 @app.route('/register')
