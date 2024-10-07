@@ -240,9 +240,6 @@ def login_email():
     data = request.get_json()
     email = data['email']
     password = data['password']
-    logger.info(f'login_email request {datetime.now()}')
-    logger.info(f'{password}, {email}')
-
 
     db_session = app.db_manager.create_session()
 
@@ -251,17 +248,23 @@ def login_email():
         # Check if the user exists by email
         user = db_session.query(LoginInfoHOF).filter_by(email=email).first()
         logger.info('after user definitions')
+        
         if user:
-            # Check if the password matches
-            if check_password_hash(user.password, password):
-                if user.subscription_status == 'paid':
-                    session['logged_in'] = True
-                    session['user_id'] = user.uid
-                    return jsonify({'redirect': '/market_view'}), 200
+            # Check if the user has a password set (i.e., not a Google login)
+            if user.password:
+                # Check if the password matches
+                if check_password_hash(user.password, password):
+                    if user.subscription_status == 'paid':
+                        session['logged_in'] = True
+                        session['user_id'] = user.email
+                        return jsonify({'redirect': '/market_view'}), 200
+                    else:
+                        return jsonify({'message': 'Payment required'}), 403
                 else:
-                    return jsonify({'message': 'Payment required'}), 403
+                    return jsonify({'error': 'Invalid credentials'}), 401
             else:
-                return jsonify({'error': 'Invalid credentials'}), 401
+                # Handle the case where the user doesn't have a password (Google login)
+                return jsonify({'error': 'This account is registered with Google. Please sign in using Google.'}), 400
         else:
             logger.info('here')
             return jsonify({'error': 'User not found'}), 404
