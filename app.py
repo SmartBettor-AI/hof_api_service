@@ -1,5 +1,5 @@
 
-from flask import Flask, request, session, jsonify, url_for
+from flask import Flask, request, session, jsonify, url_for, render_template
 from flask_socketio import SocketIO
 import plotly as plotly
 from functionality.database import database
@@ -320,6 +320,14 @@ def register_email():
 
     finally:
         session.close()
+@app.route('/market_view')
+def market_view():
+    return render_template('market_view.html')  # Or redirect
+
+# Route for Register
+@app.route('/register')
+def register():
+    return render_template('register.html')  # Or redirect
 
 
 if __name__ == '__main__':
