@@ -223,8 +223,8 @@ def google_auth():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('success', _external=True),
-            cancel_url=url_for('cancel', _external=True),
+            success_url=url_for('market_view', _external=True),
+            cancel_url=url_for('register', _external=True),
             metadata={'uid': uid}
         )
 
