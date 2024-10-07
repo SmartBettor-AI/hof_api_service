@@ -91,6 +91,14 @@ class LoginInfo(Base):
     kelley_criterion = Column(Numeric(10, 2))
 
 
+class LoginInfoHOF(Base):
+    __tablename__ = 'login_info_hof'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    uid = Column(String(255), unique=True, nullable=True)  # Optional for email registration
+    email = Column(String(255), unique=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    password = Column(String(255), nullable=True)  # Added for email registration
+    subscription_status = Column(String(50), default='unpaid')
 class MlbExtraInfo(Base):
     __tablename__ = 'mlb_extra_info'
 

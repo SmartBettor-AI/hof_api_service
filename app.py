@@ -1,5 +1,5 @@
 
-from flask import Flask, request, session, jsonify
+from flask import Flask, request, session, jsonify, url_for
 from flask_socketio import SocketIO
 import plotly as plotly
 from functionality.database import database
@@ -10,6 +10,8 @@ import time
 import atexit
 from functionality.db_manager import DBManager
 import warnings
+from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash
 warnings.filterwarnings("ignore")
 from flask_socketio import SocketIO
 import jsonpickle
@@ -25,6 +27,7 @@ from functools import wraps
 import simplejson as json
 from decimal import Decimal
 from datetime import datetime
+from functionality.models import LoginInfoHOF
 
 
 process = psutil.Process(os.getpid())
@@ -170,6 +173,153 @@ def get_MMA_Game_Data():
     return jsonify(game_data)
 
 
+@app.route('/api/google_auth', methods=['POST'])
+def google_auth():
+    data = request.get_json()
+    uid = data['uid']
+    email = data['email']
+    name = data['name']
+
+    session = app.db_manager.create_session()
+
+    try:
+        # Check if the user exists
+        user = session.query(LoginInfoHOF).filter_by(uid=uid).first()
+
+        if user:
+            # User exists; check if they have paid
+            if user.subscription_status == 'paid':
+                session['logged_in'] = True
+                session['user_id'] = uid
+                return jsonify({'redirect': '/market_view'}), 200
+            else:
+                pass  # Proceed with Stripe checkout
+
+        else:
+            # Register the new Google user
+            new_user = LoginInfoHOF(uid=uid, email=email, name=name, subscription_status='unpaid')
+            session.add(new_user)
+            session.commit()
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        session.close()
+
+    # Stripe checkout session for unpaid users
+    try:
+        stripe_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': 'Premium Subscription',
+                    },
+                    'unit_amount': 1000,  # Amount in cents ($10)
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=url_for('success', _external=True),
+            cancel_url=url_for('cancel', _external=True),
+            metadata={'uid': uid}
+        )
+
+        return jsonify({'id': stripe_session.id})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
+@app.route('/api/login_email', methods=['POST'])
+def login_email():
+    data = request.get_json()
+    email = data['email']
+    password = data['password']
+
+    session = app.db_manager.create_session()
+
+    try:
+        # Check if the user exists by email
+        user = session.query(LoginInfoHOF).filter_by(email=email).first()
+
+        if user and check_password_hash(user.password, password):
+            if user.subscription_status == 'paid':
+                session['logged_in'] = True
+                session['user_id'] = user.uid
+                return jsonify({'redirect': '/market_view'}), 200
+            else:
+                return jsonify({'message': 'Payment required'}), 403
+        else:
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        session.close()
+
+@app.route('/api/register_email', methods=['POST'])
+def register_email():
+    data = request.get_json()
+    email = data['email']
+    password = data['password']
+    name = data['name']
+
+    session = app.db_manager.create_session()
+
+    try:
+        # Check if the user already exists
+        user = session.query(LoginInfoHOF).filter_by(email=email).first()
+
+        if user:
+            return jsonify({'error': 'User already exists'}), 400
+
+        # Hash the password for storage
+        hashed_password = generate_password_hash(password)
+
+        # Register the new user
+        new_user = LoginInfoHOF(
+            uid=None,  # Generate a UID if necessary
+            email=email,
+            name=name,
+            password=hashed_password,
+            subscription_status='unpaid'
+        )
+        session.add(new_user)
+        session.commit()
+
+        # Start Stripe checkout process
+        stripe_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': 'Premium Subscription',
+                    },
+                    'unit_amount': 1000,  # Amount in cents ($10)
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=url_for('success', _external=True),
+            cancel_url=url_for('cancel', _external=True),
+            metadata={'email': email}
+        )
+
+        return jsonify({'id': stripe_session.id})
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        session.close()
 
 
 if __name__ == '__main__':
