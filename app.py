@@ -247,15 +247,19 @@ def login_email():
         # Check if the user exists by email
         user = db_session.query(LoginInfoHOF).filter_by(email=email).first()
 
-        if user and check_password_hash(user.password, password):
-            if user.subscription_status == 'paid':
-                session['logged_in'] = True
-                session['user_id'] = user.uid
-                return jsonify({'redirect': '/market_view'}), 200
+        if user:
+            # Check if the password matches
+            if check_password_hash(user.password, password):
+                if user.subscription_status == 'paid':
+                    session['logged_in'] = True
+                    session['user_id'] = user.uid
+                    return jsonify({'redirect': '/market_view'}), 200
+                else:
+                    return jsonify({'message': 'Payment required'}), 403
             else:
-                return jsonify({'message': 'Payment required'}), 403
+                return jsonify({'error': 'Invalid credentials'}), 401
         else:
-            return jsonify({'error': 'Invalid credentials'}), 401
+            return jsonify({'error': 'User not found'}), 404
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
