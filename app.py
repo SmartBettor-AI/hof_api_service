@@ -216,7 +216,7 @@ def google_auth():
                     'product_data': {
                         'name': 'Premium Subscription',
                     },
-                    'unit_amount': 1000,  # Amount in cents ($10)
+                    'unit_amount': 0,  # Amount in cents ($10)
                 },
                 'quantity': 1,
             }],
@@ -318,7 +318,7 @@ def register_email():
                     'product_data': {
                         'name': 'Premium Subscription',
                     },
-                    'unit_amount': 1000,  # Amount in cents ($10)
+                    'unit_amount': 0,  # Amount in cents ($10)
                 },
                 'quantity': 1,
             }],
