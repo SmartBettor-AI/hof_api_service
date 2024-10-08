@@ -264,6 +264,9 @@ def login_email():
                         access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                         response = jsonify({'redirect': '/market_view', 'access_token': access_token})
                         response.set_cookie('access_token', access_token, httponly=True, secure=True)
+                        logger.info(access_token)
+                        logger.inf(response)
+                        logger.info('returning response')
                         return response, 200
                     else:
                         return jsonify({'message': 'Payment required'}), 403
