@@ -274,6 +274,7 @@ def login_email():
     finally:
         db_session.close()
 
+
 @app.route('/api/register_email', methods=['POST'])
 def register_email():
     data = request.get_json()
@@ -333,6 +334,8 @@ def register_email():
 
     finally:
         db_session.close()
+
+
 @app.route('/api/market_view_success')
 def market_view_success():
     session_id = request.args.get('session_id')
@@ -355,31 +358,23 @@ def market_view_success():
                 if user:
                     user.subscription_status = 'paid'
                     session.commit()
-                    
-                    # Generate JWT for the user with email and set expiration
-                    access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
-                    
-                    # Set JWT in the response cookies
-                    response = {
-                        'message': 'Payment successful, redirecting...',
-                        'access_token': access_token,  
-                        'redirect': '/market_view'  
-                    }
-                    return jsonify(response), 200
+                    ret = "Payment Successfull, Please Log In With Your Account"
+                    return redirect(f'https://homeoffightpicks.com/market_view')
                 
                 else:
-                    return jsonify({'error': 'User not found'}), 404
+                    ret = "No User Found With This Subscription, Registration Failed"
+                    return redirect(f'https://homeoffightpicks.com/market_view')
 
             except Exception as e:
                 session.rollback()
-                return jsonify({'error': str(e)}), 500
+                return redirect(f'https://homeoffightpicks.com/market_view')
 
             finally:
                 session.close()
 
         else:
-            return jsonify({'error': 'Payment not completed'}), 400
-
+            ret = "Payment incomplete"
+            return redirect(f'https://homeoffightpicks.com/market_view')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
  
