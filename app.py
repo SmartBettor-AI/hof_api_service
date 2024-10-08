@@ -26,8 +26,11 @@ import psutil
 from functools import wraps
 import simplejson as json
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta
 from functionality.models import LoginInfoHOF
+from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
+
 
 
 process = psutil.Process(os.getpid())
@@ -52,6 +55,7 @@ def create_app():
     app.secret_key = 'to_the_moon'
     app.db_manager = DBManager()
     app.db = database(app.db_manager)
+    app.jwt = JWTManager(app)
 
     from functionality.routes.api import api
     app.register_blueprint(api)
@@ -61,6 +65,7 @@ def create_app():
 
 app = create_app()
 app.config['REACT_COMPONENT_DIRECTORY'] = os.path.join(app.root_path, 'react_frontend')
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
@@ -189,9 +194,8 @@ def google_auth():
         if user:
             # User exists; check if they have paid
             if user.subscription_status == 'paid':
-                session['logged_in'] = True
-                session['user_id'] = uid
-                return jsonify({'redirect': '/market_view'}), 200
+                access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
+                return jsonify({'redirect': '/market_view', 'access_token': access_token}), 200
             else:
                 pass  # Proceed with Stripe checkout
 
@@ -255,9 +259,9 @@ def login_email():
                 # Check if the password matches
                 if check_password_hash(user.password, password):
                     if user.subscription_status == 'paid':
-                        session['logged_in'] = True
-                        session['user_id'] = user.email
-                        return jsonify({'redirect': '/market_view'}), 200
+                        access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
+                        response = jsonify({'redirect': '/market_view', 'access_token': access_token})
+                        return response, 200
                     else:
                         return jsonify({'message': 'Payment required'}), 403
                 else:
@@ -356,6 +360,19 @@ def market_view_success():
                 if user:
                     user.subscription_status = 'paid'
                     session.commit()
+                    
+                    # Generate JWT for the user with email and set expiration
+                    access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
+                    
+                    # Set JWT in the response cookies
+                    response = jsonify({'message': 'Payment successful, redirecting...'})
+                    response.set_cookie('access_token', access_token, httponly=True, secure=True)  # Use secure=True if using HTTPS
+                    
+                    # Redirect to the internal market_view route
+                    response.headers['Location'] = '/market_view'
+                    response.status_code = 302  # Found status code for redirection
+                    return response
+                
                 else:
                     return jsonify({'error': 'User not found'}), 404
 
@@ -365,8 +382,6 @@ def market_view_success():
 
             finally:
                 session.close()
-
-            return redirect(f'https://homeoffightpicks.com/market_view')
 
         else:
             return jsonify({'error': 'Payment not completed'}), 400
@@ -478,6 +493,13 @@ def update_subscription_to_new_product(subscription_id, price_id):
     except Exception as e:
          logger.info(f"Error updating subscription: {e}")
 
+
+
+@app.route('/api/market_view')
+@jwt_required()
+def market_view():
+    current_user = get_jwt_identity()  # This will contain the user's email
+    return jsonify({'message': 'Welcome to the Market View!', 'user_email': current_user['email']})
 
 if __name__ == '__main__':
 
