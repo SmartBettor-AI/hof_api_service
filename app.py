@@ -190,6 +190,7 @@ def google_auth():
                 logger.info(f'subscription_status paid')
                 access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                 response = jsonify({'redirect': '/market_view', 'access_token': access_token})
+                return response, 200
             else:
                 pass  # Proceed with Stripe checkout
 
@@ -255,11 +256,6 @@ def login_email():
                     if user.subscription_status == 'paid':
                         access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                         response = jsonify({'redirect': '/market_view', 'access_token': access_token})
-                        response.set_cookie('access_token', access_token, httponly=True, secure=True, samesite='None')
-
-                        logger.info(access_token)
-                        logger.info(response)
-                        logger.info('returning response')
                         return response, 200
                     else:
                         return jsonify({'message': 'Payment required'}), 403
@@ -366,8 +362,8 @@ def market_view_success():
                     # Set JWT in the response cookies
                     response = {
                         'message': 'Payment successful, redirecting...',
-                        'access_token': access_token,  # Include access token in the response
-                        'redirect': '/market_view'  # Add the redirect URL
+                        'access_token': access_token,  
+                        'redirect': '/market_view'  
                     }
                     return jsonify(response), 200
                 
