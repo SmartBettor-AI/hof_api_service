@@ -265,7 +265,7 @@ def login_email():
                         response = jsonify({'redirect': '/market_view', 'access_token': access_token})
                         response.set_cookie('access_token', access_token, httponly=True, secure=True)
                         logger.info(access_token)
-                        logger.inf(response)
+                        logger.info(response)
                         logger.info('returning response')
                         return response, 200
                     else:
