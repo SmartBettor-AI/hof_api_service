@@ -46,10 +46,7 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     app = Flask(__name__, template_folder='static/templates', static_folder='static')
-    CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
-
-
-
+    CORS(app, resources={r"/*": {"origins": ["https://homeoffightpicks.com", "http://localhost:3000"]}}, supports_credentials=True)
 
     Compress(app)
     # TODO: Put this key in the secret file
