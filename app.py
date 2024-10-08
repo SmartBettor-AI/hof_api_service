@@ -498,8 +498,11 @@ def update_subscription_to_new_product(subscription_id, price_id):
 @app.route('/api/market_view')
 @jwt_required()
 def market_view():
+    logger.info(f"Cookies received: {request.cookies}")
     current_user = get_jwt_identity()
+    logger.info(f"User {current_user['email']} is accessing the market view.")
     return jsonify({'message': 'Welcome to the Market View!', 'user_email': current_user['email']})
+
 
 
 @jwt.unauthorized_loader
