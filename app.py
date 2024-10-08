@@ -263,7 +263,7 @@ def login_email():
                     if user.subscription_status == 'paid':
                         access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                         response = jsonify({'redirect': '/market_view', 'access_token': access_token})
-                        response.set_cookie('access_token', access_token, httponly=True, secure=True)
+                        response.set_cookie('access_token', access_token, httponly=True, secure=True, samesite='None')
                         logger.info(access_token)
                         logger.info(response)
                         logger.info('returning response')
@@ -504,7 +504,7 @@ def update_subscription_to_new_product(subscription_id, price_id):
 @app.route('/api/market_view')
 @jwt_required()
 def market_view():
-    current_user = get_jwt_identity()  # This will contain the user's email
+    current_user = get_jwt_identity()
     return jsonify({'message': 'Welcome to the Market View!', 'user_email': current_user['email']})
 
 if __name__ == '__main__':
