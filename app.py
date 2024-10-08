@@ -501,6 +501,11 @@ def market_view():
     current_user = get_jwt_identity()
     return jsonify({'message': 'Welcome to the Market View!', 'user_email': current_user['email']})
 
+
+@jwt.unauthorized_loader
+def unauthorized_callback(error):
+    return jsonify({'error': 'Unauthorized access', 'message': str(error)}), 401
+
 if __name__ == '__main__':
 
     socketio.run(app, debug=True, port=5000, use_reloader=False)
