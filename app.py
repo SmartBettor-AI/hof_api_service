@@ -190,7 +190,6 @@ def google_auth():
                 logger.info(f'subscription_status paid')
                 access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                 response = jsonify({'redirect': '/market_view', 'access_token': access_token})
-                response.set_cookie('access_token', access_token, httponly=True, secure=True)
             else:
                 pass  # Proceed with Stripe checkout
 
@@ -365,13 +364,12 @@ def market_view_success():
                     access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                     
                     # Set JWT in the response cookies
-                    response = jsonify({'message': 'Payment successful, redirecting...'})
-                    response.set_cookie('access_token', access_token, httponly=True, secure=True)  # Use secure=True if using HTTPS
-                    
-                    # Redirect to the internal market_view route
-                    response.headers['Location'] = '/market_view'
-                    response.status_code = 302  # Found status code for redirection
-                    return response
+                    response = {
+                        'message': 'Payment successful, redirecting...',
+                        'access_token': access_token,  # Include access token in the response
+                        'redirect': '/market_view'  # Add the redirect URL
+                    }
+                    return jsonify(response), 200
                 
                 else:
                     return jsonify({'error': 'User not found'}), 404
@@ -498,7 +496,6 @@ def update_subscription_to_new_product(subscription_id, price_id):
 @app.route('/api/market_view')
 @jwt_required()
 def market_view():
-    logger.info(f"Cookies received: {request.cookies}")
     current_user = get_jwt_identity()
     logger.info(f"User {current_user['email']} is accessing the market view.")
     return jsonify({'message': 'Welcome to the Market View!', 'user_email': current_user['email']})
