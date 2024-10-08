@@ -46,7 +46,8 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     app = Flask(__name__, template_folder='static/templates', static_folder='static')
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
+
 
 
 
@@ -258,7 +259,7 @@ def login_email():
                     if user.subscription_status == 'paid':
                         access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                         response = jsonify({'redirect': '/market_view', 'access_token': access_token})
-                        response.set_cookie('access_token', access_token, httponly=True, secure=False, samesite='Lax')
+                        response.set_cookie('access_token', access_token, httponly=True, secure=False, samesite='None')
 
                         logger.info(access_token)
                         logger.info(response)
