@@ -258,7 +258,7 @@ def login_email():
                     if user.subscription_status == 'paid':
                         access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                         response = jsonify({'redirect': '/market_view', 'access_token': access_token})
-                        response.set_cookie('access_token', access_token, httponly=True, secure=True, samesite='None')
+                        response.set_cookie('access_token', access_token, httponly=True, secure=False, samesite='None')
                         logger.info(access_token)
                         logger.info(response)
                         logger.info('returning response')
