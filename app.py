@@ -56,7 +56,6 @@ def create_app():
     app.secret_key = 'to_the_moon'
     app.db_manager = DBManager()
     app.db = database(app.db_manager)
-    app.jwt = JWTManager(app)
 
     from functionality.routes.api import api
     app.register_blueprint(api)
@@ -67,6 +66,7 @@ def create_app():
 app = create_app()
 app.config['REACT_COMPONENT_DIRECTORY'] = os.path.join(app.root_path, 'react_frontend')
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
+jwt = JWTManager(app)
 
 socketio = SocketIO(app)
 
