@@ -102,8 +102,9 @@ class BestFightOddsScraper(MMAScraper):
         api_key_5 = os.environ.get("scraping_ant_key5")
         api_key_6 = os.environ.get("scraping_ant_ke6")
         api_key_7 = os.environ.get("scraping_ant_key7")
+        api_key_8 = os.environ.get("scraping_ant_key8")
 
-        api_keys = [api_key_5, api_key_6, api_key_7, api_key_3, api_key_4, api_key_2, api_key_1]
+        api_keys = [api_key_8, api_key_5, api_key_6, api_key_7, api_key_3, api_key_4, api_key_2, api_key_1]
         
 
         retries = 0
@@ -455,8 +456,9 @@ class fightOddsIOScraper(MMAScraper):
             api_key_5 = os.environ.get("scraping_ant_key5")
             api_key_6 = os.environ.get("scraping_ant_key6")
             api_key_7 = os.environ.get("scraping_ant_key7")
+            api_key_8 = os.environ.get("scraping_ant_key8")
             
-            api_keys = [api_key_6, api_key_7, api_key_5, api_key_3, api_key_4, api_key_2,api_key_1]
+            api_keys = [api_key_8, api_key_6, api_key_7, api_key_5, api_key_3, api_key_4, api_key_2,api_key_1]
 
             retries = 0
             max_retries = 5
