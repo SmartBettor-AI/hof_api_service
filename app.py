@@ -676,6 +676,7 @@ def set_new_password_db():
 
     data = request.get_json()
     currrent_user = get_jwt_identity()
+    logger.info(f"Setting new password for current user['username]")
     username = currrent_user['username']
     password = data['password']
 
@@ -688,6 +689,7 @@ def set_new_password_db():
         result = session.query(LoginInfoHOF).filter_by(username=username).update({'password': generate_password_hash(password)})
         session.commit()
         if result > 0:
+            logger.info(f"Setting new password successfully updated")
 
             # Flash success message and redirect to login or any other page
             response = jsonify({
@@ -696,6 +698,7 @@ def set_new_password_db():
             return response
 
         else:
+            logger.info(f"Something bad happened, please try to go through this process again...")
 
             response = jsonify({
                     "success": False,
@@ -704,7 +707,7 @@ def set_new_password_db():
             return response
 
     except Exception as e:
-        print(e)
+        logger.info(e)
 
     finally:
         session.close()
