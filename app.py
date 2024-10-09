@@ -530,8 +530,8 @@ def reset_password():
         message = MIMEMultipart()
         message['From'] = sender_email
         message['To'] = email
-        message['Subject'] = f'Your Smartbettor Verification Code: {code}'
-        body = f"""Hey Valued SmartBettor User,
+        message['Subject'] = f'Your Home Of Fight Picks Verification Code: {code}'
+        body = f"""Hey Valued HOF User,
 
         To verify your password reset request please enter the following code when prompted:
 
