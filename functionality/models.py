@@ -58,6 +58,15 @@ class VerificationCode(Base):
     time_allowed = Column(DateTime, nullable=False)
     used = Column(Boolean, nullable=False)
 
+
+class VerificationCodeHOF(Base):
+    __tablename__ = 'verification_codes_hof'
+
+    username = Column(String(255), primary_key=True)
+    code = Column(Integer, primary_key=True)
+    time_allowed = Column(DateTime, nullable=False)
+    used = Column(Boolean, nullable=False)
+
 class MasterModelObservations(Base):
     __tablename__ = 'master_model_observations'
     new_column = Column(String(255), primary_key=True)

@@ -23,11 +23,15 @@ import flock as flock
 from flask_cors import CORS
 import redis
 import psutil
+import random
 from functools import wraps
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import simplejson as json
 from decimal import Decimal
 from datetime import datetime, timedelta
-from functionality.models import LoginInfoHOF
+from functionality.models import LoginInfoHOF, VerificationCodeHOF
 from flask_jwt_extended import JWTManager
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
 
@@ -496,6 +500,224 @@ def market_view():
 @jwt.unauthorized_loader
 def unauthorized_callback(error):
     return jsonify({'error': 'Unauthorized access', 'message': str(error)}), 401
+
+
+
+
+
+
+
+
+# Reset password 
+
+@app.route('/api/reset_password', methods=['POST','GET'])
+def reset_password():
+
+    data = request.get_json()
+
+    username = data.get('email')
+
+    def generate_random_code():
+    # Generate a random 6-digit code
+        return str(random.randint(100000, 999999))
+
+    def send_email(email, code):
+        sender_email = 'getsmartbettor@gmail.com'
+        sender_password = 'gfjk lqhs xnqn syji'
+
+
+    # Create a MIMEText object for the email body
+        message = MIMEMultipart()
+        message['From'] = sender_email
+        message['To'] = email
+        message['Subject'] = f'Your Smartbettor Verification Code: {code}'
+        body = f"""Hey Valued SmartBettor User,
+
+        To verify your password reset request please enter the following code when prompted:
+
+        {code}
+
+        Please note that this code is only valid for the next 5 minutes.
+
+        Thank you!
+        """
+        
+    # Attach the body to the email
+        message.attach(MIMEText(body, 'plain'))
+
+    # Establish a connection to the SMTP server
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, email, message.as_string())
+        print(f"Verification code sent to {username}")
+
+    def password_function(email):
+        try:
+            session = app.db_manager.create_session()
+            user = session.query(LoginInfoHOF).filter_by(email=username).first()
+            if user != None:
+                code = generate_random_code()
+                send_email(email, code)
+                return code
+            else:
+                #TODO: test
+                return 0
+        except Exception as e:
+            logger.info(e)
+            return str(e)
+        finally:
+            session.close()
+    
+    def set_reset_instance(code,username):
+        if code != 0:
+            try:
+            # Create a session
+                session = app.db_manager.create_session()
+                current_datetime = datetime.now()
+
+    # Add 5 minutes to the current datetime
+                time_plus_5 = current_datetime + timedelta(minutes=5)
+
+                new_code = VerificationCodeHOF(username=username, code=code, time_allowed=time_plus_5, used = False)
+
+
+                # Add the new user to the session and commit the transaction
+                session.add(new_code)
+                session.commit()
+            except Exception as e:
+                print(e)
+                return str(e)
+            finally:
+                session.close()
+
+    code = password_function(username)
+
+    if code == 0:
+        error_message = "Email not found in the database. If you have paid through stripe, please complete registration."
+        return render_template('register.html', incorrect_password=True, form_data={}, error_message=error_message) 
+    
+    set_reset_instance(code,username)
+
+    response = jsonify({
+            "success": True
+        })
+
+    return response
+
+
+@app.route('/api/confirm_password')
+def confirm_password():
+    username = request.args.get('username')
+    try:
+        msg = request.args.get('msg')
+    except:
+        msg = ''
+
+    if request.referrer and 'reset_password' in request.referrer:
+        return render_template('confirm_password.html', username = username)
+    
+    elif request.referrer and 'confirm_password' in request.referrer:
+        return render_template('confirm_password.html', username = username, msg = msg)
+    else:
+        # Redirect to login page if the referrer is not reset_password
+        return redirect(url_for('login'))
+    
+
+@app.route('/api/confirm_password_button', methods=['POST','GET'])
+def confirm_password_button():
+    data = request.get_json()
+    username = data['email']
+    code = data['code']
+
+    try:
+        session = app.db_manager.create_session()
+        code = int(code)
+        verification_code = session.query(VerificationCodeHOF).filter_by(username=username, code=code).first()
+
+        if verification_code:
+            current_datetime = datetime.now()
+            if verification_code.time_allowed > current_datetime and not verification_code.used:
+                # Set the code as used and commit the transaction
+                session.delete(verification_code)
+                session.commit()
+                access_token = create_access_token(identity={'username': username}, expires_delta=timedelta(minutes=10))
+                response = jsonify({
+                    "success": True,
+                    "access_token": access_token
+                })
+                return response
+    
+            else:
+                response = jsonify({
+                    "success": False,
+                    "msg": "Code expired or already used"
+                })
+                return response
+        else:
+            msg= "Invalid code for the given username"
+            response = jsonify({
+                    "success": False,
+                    "msg": msg
+            })
+            return response
+      
+
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False, "message": str(e)})
+    finally:
+        session.close()
+
+
+@app.route('/api/set_new_password_db', methods=['GET', 'POST'])
+@jwt_required()
+def set_new_password_db():
+
+    data = request.get_json()
+    currrent_user = get_jwt_identity()
+    username = currrent_user['username']
+    password = data['password']
+
+    try:
+        # Create a session
+        session = app.db_manager.create_session()
+        
+            
+        # Update all entries for this username
+        result = session.query(LoginInfoHOF).filter_by(username=username).update({'password': generate_password_hash(password)})
+        session.commit()
+        if result > 0:
+
+            # Flash success message and redirect to login or any other page
+            response = jsonify({
+                    "success": True,
+            })
+            return response
+
+        else:
+
+            response = jsonify({
+                    "success": False,
+                    "msg": "Something bad happened, please try to go through this process again..."
+            })
+            return response
+
+    except Exception as e:
+        print(e)
+
+    finally:
+        session.close()
+
+    response = jsonify({
+                    "success": True,
+            })
+    return response
+
+
+@app.route('/api/password_update_successful')
+def password_update_successful():
+    return render_template('password_update_successful.html')
 
 if __name__ == '__main__':
 
