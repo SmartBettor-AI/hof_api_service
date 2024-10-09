@@ -686,7 +686,7 @@ def set_new_password_db():
         
             
         # Update all entries for this username
-        result = session.query(LoginInfoHOF).filter_by(username=username).update({'password': generate_password_hash(password)})
+        result = session.query(LoginInfoHOF).filter_by(email=username).update({'password': generate_password_hash(password)})
         session.commit()
         if result > 0:
             logger.info(f"Setting new password successfully updated")
@@ -698,24 +698,24 @@ def set_new_password_db():
             return response
 
         else:
-            logger.info(f"Something bad happened, please try to go through this process again...")
 
             response = jsonify({
                     "success": False,
-                    "msg": "Something bad happened, please try to go through this process again..."
+                    "msg": "No user found for this username"
             })
             return response
 
     except Exception as e:
         logger.info(e)
+        response = jsonify({
+                    "success": False,
+                    "msg": "Something bad happened, please try to go through this process again..."
+        })
+        return response
 
     finally:
         session.close()
 
-    response = jsonify({
-                    "success": True,
-            })
-    return response
 
 
 @app.route('/api/password_update_successful')
