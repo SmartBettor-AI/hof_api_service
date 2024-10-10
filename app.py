@@ -191,18 +191,12 @@ def google_auth():
         if user:
             # User exists; check if they have paid
             if user.subscription_status == 'paid':
-                logger.info(f'subscription_status paid')
+              
                 access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                 response = jsonify({'redirect': '/market_view', 'access_token': access_token})
                 return response, 200
             else:
                 pass  # Proceed with Stripe checkout
-
-        else:
-            # Register the new Google user
-            new_user = LoginInfoHOF(uid=uid, email=email, name=name, subscription_status='unpaid')
-            db_session.add(new_user)
-            db_session.commit()
 
     except Exception as e:
         db_session.rollback()
@@ -226,7 +220,7 @@ def google_auth():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+ f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}",
+            success_url=url_for('market_view_success', _external=True)+ f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&password={password}",
             cancel_url=url_for('register', _external=True),
             metadata={'uid': uid}
         )
