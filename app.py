@@ -286,6 +286,12 @@ def register_email():
     password = data['password']
     name = data['name']
 
+    session['temp_user'] = {
+        'email': email,
+        'name': name,
+        'password': password
+    }
+
     db_session = app.db_manager.create_session()
 
     try:
@@ -294,20 +300,6 @@ def register_email():
 
         if user:
             return jsonify({'error': 'User already exists'}), 400
-
-        # Hash the password for storage
-        hashed_password = generate_password_hash(password)
-
-        # Register the new user
-        new_user = LoginInfoHOF(
-            uid=None,  # Generate a UID if necessary
-            email=email,
-            name=name,
-            password=hashed_password,
-            subscription_status='unpaid'
-        )
-        db_session.add(new_user)
-        db_session.commit()
 
         # Start Stripe checkout process
         stripe_session = stripe.checkout.Session.create(
@@ -324,7 +316,7 @@ def register_email():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}",
+            success_url=url_for('market_view_success', _external=True)+f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&password={password}",
             cancel_url=url_for('register', _external=True),
             metadata={'email': email}
         )
@@ -344,6 +336,8 @@ def register_email():
 def market_view_success():
     session_id = request.args.get('session_id')
     email = request.args.get('email')
+    name = request.args.get('name')
+    password = request.args.get('password')
 
     if not session_id:
         return jsonify({'error': 'Session ID not provided'}), 400
@@ -353,21 +347,23 @@ def market_view_success():
         stripe_session = stripe.checkout.Session.retrieve(session_id)
 
         if stripe_session.payment_status == 'paid':
-            session = app.db_manager.create_session()
+            db_session = app.db_manager.create_session()
 
             try:
-                # Update the subscription_status to 'paid' for the user with the given email
-                user = session.query(LoginInfoHOF).filter_by(email=email).first()
-                
-                if user:
-                    user.subscription_status = 'paid'
-                    session.commit()
-                    ret = "Payment Successfull, Please Log In With Your Account"
-                    return redirect(f'https://homeoffightpicks.com/market_view')
-                
-                else:
-                    ret = "No User Found With This Subscription, Registration Failed"
-                    return redirect(f'https://homeoffightpicks.com/market_view')
+                        # Hash the password for storage
+                hashed_password = generate_password_hash(password)
+
+                # Register the new user
+                new_user = LoginInfoHOF(
+                    uid=None,  # Generate a UID if necessary
+                    email=email,
+                    name=name,
+                    password=hashed_password,
+                    subscription_status='paid'
+                )
+                db_session.add(new_user)
+                db_session.commit()
+                return redirect(f'https://homeoffightpicks.com/market_view')
 
             except Exception as e:
                 session.rollback()
@@ -377,8 +373,8 @@ def market_view_success():
                 session.close()
 
         else:
-            ret = "Payment incomplete"
-            return redirect(f'https://homeoffightpicks.com/market_view')
+            
+            return redirect(f'https://homeoffightpicks.com/register')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
  
