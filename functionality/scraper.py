@@ -926,12 +926,26 @@ class fightOddsIOScraper(MMAScraper):
                 if "distance" in market:
                     return 'Distance (Y/N)'
                 
+                
 
                 if 'significant' in market:
                     return 'Other props'
+                
+                if ' or ' in market and ('decision' in market or 'submission' in market):
+                    return 'Double Chance'
+                
+                if ('over' in market or 'under' in market) and 'main' not in current_market_keys:
+                    return 'Alt Totals'
+                
 
                 # Method of Victory (checking this first)
                 mov_keywords = ['ko', 'tko', 'dq', 'submission', 'decision']
+
+                if any(x in market for x in mov_keywords):
+                    if re.search(r'\b[1-5]\b', market):
+                        if '-' in market:
+                            return 'Method + Round'
+
                 mov_pattern = re.compile(r'\b(' + '|'.join(mov_keywords) + r')(,|\b|/)')
                 if mov_pattern.search(market) and \
                 current_market_keys != 'h2h' and \
@@ -943,8 +957,9 @@ class fightOddsIOScraper(MMAScraper):
                     return 'Round props'
                 
 
-                if any(x in market for x in ['wins', 'draw', 'goes the distance', 'fight ends inside']) or market in ['over', 'under'] or any(x in current_market_keys for x in ['h2h', 'totals']) or any(x in market for x in ['scorecards = no action', 'ends in a draw', 'round']) or market.endswith('.5'):
+                if any(x in market for x in ['wins', 'draw', 'goes the distance', 'fight ends inside']) or market in ['over', 'under'] or any(x in current_market_keys for x in ['h2h', 'main_totals']) or any(x in market for x in ['scorecards = no action', 'ends in a draw', 'round']) or market.endswith('.5'):
                     return 'Fight lines'
+                
 
                 
                 return 'Other props'
@@ -1236,11 +1251,15 @@ class fightOddsIOScraper(MMAScraper):
         merged_df['odds'] = merged_df.apply(lambda row: json.dumps({col: row[col] for col in odds_cols}), axis=1)
         # this_df.to_csv('after_all_collection.csv', index = False)
 
-        
+        merged_df.to_csv('before_categorize.csv', index=False)
         merged_df = self.categorize_markets(merged_df)
+        merged_df.to_csv('after_categorize.csv', index=False)
+        merged_df = self.mark_main_totals(merged_df)
         merged_df = self.categorize_dropdown(merged_df)
 
-        merged_df = self.mark_main_totals(merged_df)
+
+        merged_df.to_csv('final_output.csv', index=False)
+
 
 
 
