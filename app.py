@@ -220,7 +220,7 @@ def google_auth():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+ f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&password={password}",
+            success_url=url_for('market_view_success', _external=True)+ f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&uid={uid}",
             cancel_url=url_for('register', _external=True),
             metadata={'uid': uid}
         )
@@ -279,12 +279,7 @@ def register_email():
     email = data['email']
     password = data['password']
     name = data['name']
-
-    session['temp_user'] = {
-        'email': email,
-        'name': name,
-        'password': password
-    }
+    hashed_password = generate_password_hash(password)
 
     db_session = app.db_manager.create_session()
 
@@ -310,7 +305,7 @@ def register_email():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&password={password}",
+            success_url=url_for('market_view_success', _external=True)+f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&password={hashed_password}",
             cancel_url=url_for('register', _external=True),
             metadata={'email': email}
         )
@@ -331,7 +326,8 @@ def market_view_success():
     session_id = request.args.get('session_id')
     email = request.args.get('email')
     name = request.args.get('name')
-    password = request.args.get('password')
+    uid = request.args.get('uid')
+    hashed_password = request.args.get('password')
 
     if not session_id:
         return jsonify({'error': 'Session ID not provided'}), 400
@@ -344,12 +340,8 @@ def market_view_success():
             db_session = app.db_manager.create_session()
 
             try:
-                        # Hash the password for storage
-                hashed_password = generate_password_hash(password)
-
-                # Register the new user
                 new_user = LoginInfoHOF(
-                    uid=None,  # Generate a UID if necessary
+                    uid=uid,
                     email=email,
                     name=name,
                     password=hashed_password,
