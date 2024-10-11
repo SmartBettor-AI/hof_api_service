@@ -222,8 +222,8 @@ def google_auth():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+ f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&uid={uid}",
-            cancel_url=url_for('register', _external=True),
+            success_url=url_for('market_view_success', _external=True, _scheme='https')+ f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&uid={uid}",
+            cancel_url=url_for('register', _external=True, _scheme='https'),
             metadata={'uid': uid}
         )
 
@@ -307,8 +307,8 @@ def register_email():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=url_for('market_view_success', _external=True)+f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&password={hashed_password}",
-            cancel_url=url_for('register', _external=True),
+            success_url=url_for('market_view_success', _external=True, _scheme='https')+f"?session_id={{CHECKOUT_SESSION_ID}}&email={email}&name={name}&password={hashed_password}",
+            cancel_url=url_for('register', _external=True, _scheme='https'),
             metadata={'email': email}
         )
 
