@@ -121,10 +121,12 @@ class BestFightOddsScraper(MMAScraper):
                 
                 res = conn.getresponse()
                 if res.status != 200:
+                    logger.info(f'Response failed id: {api_key}')
+                    logger.info(res.read())
                     raise Exception(f"Request failed with status code {res.status}")
                     
                 data = res.read()
-                print('Received response')
+                logger.info('Received response')
                 # print(data)
                 
                 html_content = data.decode("utf-8")
@@ -132,7 +134,7 @@ class BestFightOddsScraper(MMAScraper):
                 break
                 
             except Exception as e:
-                print(f"Request failed: {e}")
+                logger.info(f"Request failed: {e}")
                 retries += 1
                 if retries < max_retries:
                     # Set a random delay between 1 and 5 seconds
@@ -141,7 +143,7 @@ class BestFightOddsScraper(MMAScraper):
                     time.sleep(delay)
                     i += 1
                 else:
-                    print("Max retries reached. Exiting.")
+                    logger.info("Max retries reached. Exiting.")
                     raise
 
 
@@ -477,11 +479,12 @@ class fightOddsIOScraper(MMAScraper):
                     
                     res = conn.getresponse()
                     if res.status != 200:
-                        print(res.read())
+                        logger.info(res.read())
+                        logger.info(api_key)
                         raise Exception(f"Request failed with status code {res.status}")
                         
                     data = res.read()
-                    print('Received response')
+                    logger.info('Received response')
                     # print(data)
                     
                     html_content = data.decode("utf-8")
@@ -489,7 +492,7 @@ class fightOddsIOScraper(MMAScraper):
                     break
                     
                 except Exception as e:
-                    print(f"Request failed: {e}")
+                    logger.info(f"Request failed: {e}")
                     retries += 1
                     if retries < max_retries:
                         # Set a random delay between 1 and 5 seconds
