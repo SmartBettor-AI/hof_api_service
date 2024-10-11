@@ -68,6 +68,7 @@ app = create_app()
 app.config['REACT_COMPONENT_DIRECTORY'] = os.path.join(app.root_path, 'react_frontend')
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 app.config['SERVER_NAME'] = 'homeoffightpicks.com'
+
 jwt = JWTManager(app)
 
 socketio = SocketIO(app)
