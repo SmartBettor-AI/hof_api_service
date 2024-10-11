@@ -352,11 +352,11 @@ def market_view_success():
                 return redirect(f'https://homeoffightpicks.com/market_view')
 
             except Exception as e:
-                session.rollback()
+                db_session.rollback()
                 return redirect(f'https://homeoffightpicks.com/market_view')
 
             finally:
-                session.close()
+                db_session.close()
 
         else:
             
