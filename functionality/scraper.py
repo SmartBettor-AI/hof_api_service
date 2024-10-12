@@ -926,9 +926,16 @@ class fightOddsIOScraper(MMAScraper):
                 if "distance" in market:
                     return 'Distance (Y/N)'
                 
+
+                ###handle the round prop others
+
+                if ('doesn' in market and 'win in round' in market) or 'ends in round' in market:
+                    return 'Other props'
+                
                 ###handle all of the weird FL outliers
 
-                if 'unanimous' in market or 'split' in market or ('tko' in market and 'doesn' in market) or ('submission' in market and 'doesn' in market):
+
+                if 'unanimous' in market or 'split' in market or ('tko' in market and 'doesn' in market) or ('submission' in market and 'doesn' in market) or ('decision' in market and 'doesn' in market):
                     return 'Other props'
                 
                 
