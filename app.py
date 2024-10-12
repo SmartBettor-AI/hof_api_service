@@ -67,7 +67,7 @@ def create_app():
 app = create_app()
 app.config['REACT_COMPONENT_DIRECTORY'] = os.path.join(app.root_path, 'react_frontend')
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
-app.config['SERVER_NAME'] = 'homeoffightpicks.com'
+app.config['SERVER_NAME'] = 'api.homeoffightpicks.com'
 
 jwt = JWTManager(app)
 
@@ -351,18 +351,18 @@ def market_view_success():
                 )
                 db_session.add(new_user)
                 db_session.commit()
-                return redirect(f'https://homeoffightpicks.com/market_view')
+                return redirect(f'https://api.homeoffightpicks.com/market_view')
 
             except Exception as e:
                 db_session.rollback()
-                return redirect(f'https://homeoffightpicks.com/market_view')
+                return redirect(f'https://api.homeoffightpicks.com/market_view')
 
             finally:
                 db_session.close()
 
         else:
             
-            return redirect(f'https://homeoffightpicks.com/register')
+            return redirect(f'https://api.homeoffightpicks.com/register')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
  
@@ -370,7 +370,7 @@ def market_view_success():
 # Route for Register
 @app.route('/api/register')
 def register():
-    return redirect(f'https://homeoffightpicks.com/register')
+    return redirect(f'https://api.homeoffightpicks.com/register')
 
 
 
