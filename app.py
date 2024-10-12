@@ -67,7 +67,7 @@ def create_app():
 app = create_app()
 app.config['REACT_COMPONENT_DIRECTORY'] = os.path.join(app.root_path, 'react_frontend')
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
-app.config['SERVER_NAME'] = 'api.homeoffightpicks.com'
+app.config['SERVER_NAME'] = 'app.homeoffightpicks.com'
 
 jwt = JWTManager(app)
 
@@ -193,6 +193,7 @@ def google_auth():
         if user:
             # User exists; check if they have paid
             if user.subscription_status == 'paid':
+                logger.info(f"User {email} is logged in and has paid")
               
                 access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
                 response = jsonify({'redirect': '/market_view', 'access_token': access_token})
