@@ -352,18 +352,18 @@ def market_view_success():
                 )
                 db_session.add(new_user)
                 db_session.commit()
-                return redirect(f'https://api.homeoffightpicks.com/market_view')
+                return redirect(f'https://app.homeoffightpicks.com/market_view')
 
             except Exception as e:
                 db_session.rollback()
-                return redirect(f'https://api.homeoffightpicks.com/market_view')
+                return redirect(f'https://app.homeoffightpicks.com/market_view')
 
             finally:
                 db_session.close()
 
         else:
             
-            return redirect(f'https://api.homeoffightpicks.com/register')
+            return redirect(f'https://app.homeoffightpicks.com/register')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
  
@@ -371,7 +371,7 @@ def market_view_success():
 # Route for Register
 @app.route('/api/register')
 def register():
-    return redirect(f'https://api.homeoffightpicks.com/register')
+    return redirect(f'https://app.homeoffightpicks.com/register')
 
 
 
