@@ -929,7 +929,7 @@ class fightOddsIOScraper(MMAScraper):
 
                 ###handle the round prop others
 
-                if ('doesn' in market and 'win in round' in market) or ('ends in round' in market) or ('starts round' in market):
+                if ('doesn' in market and 'win in round' in market) or ('ends in round' in market) or ('starts round' in market) ('start round' in market):
                     return 'Other props'
                 
                 ###handle all of the weird FL outliers
