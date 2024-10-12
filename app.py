@@ -185,10 +185,12 @@ def google_auth():
     name = data['name']
 
     db_session = app.db_manager.create_session()
+    logger.info(f"User {email} is logging in with google")
 
     try:
         # Check if the user exists
         user = db_session.query(LoginInfoHOF).filter_by(uid=uid).first()
+        logger.info(f"User {user} is the user")
 
         if user:
             # User exists; check if they have paid
@@ -203,6 +205,7 @@ def google_auth():
 
     except Exception as e:
         db_session.rollback()
+        logger.info(f"Error logging in with google: {e}")
         return jsonify({'error': str(e)}), 500
 
     finally:
