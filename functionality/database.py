@@ -1094,7 +1094,7 @@ class database():
                 latest_odds.pulled_id,
                 func.max(latest_odds.pulled_time).label('max_pulled_time')
             )
-            .where(latest_odds.game_date >= today, latest_odds.market_key.in_(['h2h']))
+            .where(latest_odds.game_date >= one_day_ago, latest_odds.market_key.in_(['h2h']))
             .where(latest_odds.pulled_time >= one_day_ago)
             .group_by(latest_odds.game_id, latest_odds.market)
             .subquery()
@@ -1171,7 +1171,7 @@ class database():
                     order_by=latest_odds2.pulled_time.desc()
                 ).label('rank')
             )
-            .filter(latest_odds2.game_date >= today)
+            .filter(latest_odds2.game_date >= one_day_ago)
             .filter(latest_odds2.market_key.in_(['Main Total']))
 
             .subquery()
@@ -1233,7 +1233,7 @@ class database():
                 func.max(MMAOdds.pulled_time).label('max_pulled_time')
             )
             .filter(and_(
-                MMAOdds.game_date >= today,
+                MMAOdds.game_date >= one_day_ago,
                 MMAOdds.pulled_time >= one_day_ago,
                 MMAOdds.game_id == gameId
             ))
