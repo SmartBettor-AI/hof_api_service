@@ -702,7 +702,7 @@ class fightOddsIOScraper(MMAScraper):
     def get_MMA_game_data(self, gameId):
       
       with self.db_manager.create_session() as session:
-        today = func.current_date() - text("interval '12 hours'")
+        today = func.date(func.date_sub(func.now(), text('INTERVAL 1 DAY')))
         one_day_ago = datetime.now() - timedelta(days=1)
 
         # Subquery to get the most recent pulled_time for each game_id and market
@@ -773,7 +773,7 @@ class fightOddsIOScraper(MMAScraper):
   
       
       try:
-        today = func.current_date() - text("interval '12 hours'")
+        today = func.date(func.date_sub(func.now(), text('INTERVAL 1 DAY')))
         one_day_ago = datetime.now() - timedelta(days=1)
 
         latest_odds = aliased(MMAOdds)
