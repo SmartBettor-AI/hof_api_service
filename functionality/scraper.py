@@ -28,7 +28,7 @@ import os
 from datetime import datetime, timedelta
 import uuid
 import redis
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, text
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 class MMAScraper:
@@ -702,7 +702,7 @@ class fightOddsIOScraper(MMAScraper):
     def get_MMA_game_data(self, gameId):
       
       with self.db_manager.create_session() as session:
-        today = func.current_date()
+        today = func.current_date() - text("interval '12 hours'")
         one_day_ago = datetime.now() - timedelta(days=1)
 
         # Subquery to get the most recent pulled_time for each game_id and market
@@ -714,7 +714,7 @@ class fightOddsIOScraper(MMAScraper):
                 func.max(MMAOdds.pulled_time).label('max_pulled_time')
             )
             .filter(and_(
-                MMAOdds.game_date >= one_day_ago,
+                MMAOdds.game_date >= today,
                 MMAOdds.pulled_time >= one_day_ago,
                 MMAOdds.game_id == gameId
             ))
@@ -773,7 +773,7 @@ class fightOddsIOScraper(MMAScraper):
   
       
       try:
-        today = func.current_date()
+        today = func.current_date() - text("interval '12 hours'")
         one_day_ago = datetime.now() - timedelta(days=1)
 
         latest_odds = aliased(MMAOdds)
@@ -788,7 +788,7 @@ class fightOddsIOScraper(MMAScraper):
                 latest_odds.pulled_id,
                 func.max(latest_odds.pulled_time).label('max_pulled_time')
             )
-            .where(latest_odds.game_date >= one_day_ago, latest_odds.market_key.in_(['h2h']))
+            .where(latest_odds.game_date >= today, latest_odds.market_key.in_(['h2h']))
             .where(latest_odds.pulled_time >= one_day_ago)
             .group_by(latest_odds.game_id, latest_odds.market)
             .subquery()
@@ -865,7 +865,7 @@ class fightOddsIOScraper(MMAScraper):
                     order_by=latest_odds2.pulled_time.desc()
                 ).label('rank')
             )
-            .filter(latest_odds2.game_date >= one_day_ago)
+            .filter(latest_odds2.game_date >= today)
             .filter(latest_odds2.market_key.in_(['Main Total']))
 
             .subquery()
