@@ -929,7 +929,7 @@ class fightOddsIOScraper(MMAScraper):
 
                 ###handle the round prop others
 
-                if ('doesn' in market and 'win in round' in market) or ('ends in round' in market) or ('starts round' in market) ('start round' in market):
+                if ('doesn' in market and 'win in round' in market) or ('ends in round' in market) or ('starts round' in market) or ('start round' in market):
                     return 'Other props'
                 
                 ###handle all of the weird FL outliers
@@ -1554,23 +1554,23 @@ while True:
     try:
         fightOddsIO.scrape_event_data(i)
     except Exception as e:
-        print(f"Error occurred while scraping event {i}: {e}")
+        logger.info(f"Error occurred while scraping event {i}: {e}")
         continue
     try:
         fightOddsIO.format_odds()
     except Exception as e:
-        print(f"Error occurred while formatting odds for event {i}: {e}")
+        logger.info(f"Error occurred while formatting odds for event {i}: {e}")
         continue
     try:
         fightOddsIO.get_mma_data_for_cache()
     except Exception as e:
-        print(f"Error occurred while getting MMA data for event {i}: {e}")
+        logger.info(f"Error occurred while getting MMA data for event {i}: {e}")
         continue
     try:
         fightOddsIO.get_mma_game_data_for_cache()
     except Exception as e:
-        print(f"Error occurred while getting MMA game data for event {i}: {e}")
+        logger.info(f"Error occurred while getting MMA game data for event {i}: {e}")
         continue
     
-    print("Events Done!")
+    logger.info("Events Done!")
     time.sleep(300)
