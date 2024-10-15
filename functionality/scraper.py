@@ -1550,27 +1550,46 @@ scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
 fightOddsIO = fightOddsIOScraper('https://fightodds.io/')
 i = 0
 while True:
-    i += 1
-    try:
-        fightOddsIO.scrape_event_data(i)
-    except Exception as e:
-        logger.info(f"Error occurred while scraping event {i}: {e}")
-        continue
-    try:
-        fightOddsIO.format_odds()
-    except Exception as e:
-        logger.info(f"Error occurred while formatting odds for event {i}: {e}")
-        continue
-    try:
-        fightOddsIO.get_mma_data_for_cache()
-    except Exception as e:
-        logger.info(f"Error occurred while getting MMA data for event {i}: {e}")
-        continue
-    try:
-        fightOddsIO.get_mma_game_data_for_cache()
-    except Exception as e:
-        logger.info(f"Error occurred while getting MMA game data for event {i}: {e}")
-        continue
+    try: 
+        i += 1
+        try:
+            fightOddsIO.scrape_event_data(i)
+        except Exception as e:
+            logger.info(f"Error occurred while scraping event {i}: {e}")
+            continue
+        try:
+            fightOddsIO.format_odds()
+        except Exception as e:
+            logger.info(f"Error occurred while formatting odds for event {i}: {e}")
+            continue
+        try:
+            fightOddsIO.get_mma_data_for_cache()
+        except Exception as e:
+            logger.info(f"Error occurred while getting MMA data for event {i}: {e}")
+            continue
+        try:
+            fightOddsIO.get_mma_game_data_for_cache()
+        except Exception as e:
+            logger.info(f"Error occurred while getting MMA game data for event {i}: {e}")
+            continue
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error occurred: {e}")
+    except ValueError as e:
+        logger.error(f"Value error: {e}")
+    except KeyError as e:
+        logger.error(f"Key error: {e}")
+    except AttributeError as e:
+        logger.error(f"Attribute error: {e}")
+    except IndexError as e:
+        logger.error(f"Index error: {e}")
+    except TypeError as e:
+        logger.error(f"Type error: {e}")
+    except MemoryError as e:
+        logger.error(f"Memory error: {e}")
+    except Exception as e:  # Catch all for any other exceptions
+        logger.error(f"An unexpected error occurred: {e}")
+    finally:
+        time.sleep(10)
     
     logger.info("Events Done!")
     time.sleep(300)
