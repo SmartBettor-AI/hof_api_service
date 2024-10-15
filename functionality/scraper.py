@@ -604,7 +604,7 @@ class fightOddsIOScraper(MMAScraper):
             df['class_name'] = class_names
             df.to_csv('oddstable.csv')
             df = df.rename(columns={'Fighters': 'market'})
-            df = df.drop(columns=['Unnamed: 16'])
+            df = df.drop(columns=['Unnamed: 17'])
 
             columns_to_check = df.columns.difference(['market', 'class_name'])
 
