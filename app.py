@@ -355,11 +355,11 @@ def market_view_success():
                 )
                 db_session.add(new_user)
                 db_session.commit()
-                return redirect(f'https://app.homeoffightpicks.com/market_view')
+                return redirect(f'https://app.homeoffightpicks.com/login')
 
             except Exception as e:
                 db_session.rollback()
-                return redirect(f'https://app.homeoffightpicks.com/market_view')
+                return redirect(f'https://app.homeoffightpicks.com/register')
 
             finally:
                 db_session.close()
