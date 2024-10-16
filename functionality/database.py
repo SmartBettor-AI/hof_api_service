@@ -1111,15 +1111,15 @@ class database():
             .join(subquery, (MMAOdds.game_id == subquery.c.game_id) &
                   (MMAOdds.market == subquery.c.market) &
                   (MMAOdds.pulled_time == subquery.c.max_pulled_time))
-            .join(MMAGames, MMAOdds.game_id == MMAGames.id)  # Join with MMAGames to get my_game_id
-            .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)  # Join with MMAEvents to get my_event_id
+            .join(MMAGames, MMAOdds.game_id == MMAGames.id)
+            .join(MMAEvents, MMAOdds.event_id == MMAEvents.id)
             .outerjoin(
                 other_side,
                 (MMAOdds.game_id == other_side.game_id) &
                 (MMAOdds.market != other_side.market) &
                 (MMAOdds.market_key == other_side.market_key) &
-                (other_side.pulled_id == subquery.c.pulled_id) &
-                (other_side.id < subquery.c.id)
+                (MMAOdds.pulled_id == other_side.pulled_id) &  # Ensure same pulled_id
+                (other_side.pulled_time == subquery.c.max_pulled_time)  # Ensure latest pulled_time
             )
         )
 
