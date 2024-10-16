@@ -1121,6 +1121,7 @@ class database():
                 (MMAOdds.pulled_id == other_side.pulled_id) 
                 
             )
+            .where(MMAOdds.id < other_side.id) 
         )
 
         # Execute the optimized query

@@ -815,6 +815,7 @@ class fightOddsIOScraper(MMAScraper):
                 (MMAOdds.pulled_id == other_side.pulled_id) &  # Ensure same pulled_id
                 (other_side.pulled_time == subquery.c.max_pulled_time)  # Ensure latest pulled_time
             )
+            .where(MMAOdds.id < other_side.id) 
 )
 
         # Execute the optimized query
