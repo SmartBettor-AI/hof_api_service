@@ -108,6 +108,7 @@ class LoginInfoHOF(Base):
     name = Column(String(255), nullable=False)
     password = Column(String(255), nullable=True)  # Added for email registration
     subscription_status = Column(String(50), default='unpaid')
+    stripe_email = Column(String(255), nullable=True)
 class MlbExtraInfo(Base):
     __tablename__ = 'mlb_extra_info'
 

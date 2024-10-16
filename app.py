@@ -197,7 +197,14 @@ def google_auth():
             if user.subscription_status == 'paid':
                 logger.info(f"User {email} is logged in and has paid")
               
-                access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
+                access_token = create_access_token(
+                    identity={
+                        'email': email,
+                        'stripe_email': user.stripe_email,
+                        'name': user.name
+                    },
+                    expires_delta=timedelta(days=7)
+                )
                 response = jsonify({'redirect': '/market_view', 'access_token': access_token})
                 return response, 200
             else:
@@ -258,7 +265,14 @@ def login_email():
                 # Check if the password matches
                 if check_password_hash(user.password, password):
                     if user.subscription_status == 'paid':
-                        access_token = create_access_token(identity={'email': email}, expires_delta=timedelta(days=7))
+                        access_token = create_access_token(
+                                identity={
+                                    'email': email,
+                                    'stripe_email': user.stripe_email,
+                                    'name': user.name
+                                },
+                                expires_delta=timedelta(days=7)
+                            )
                         response = jsonify({'redirect': '/market_view', 'access_token': access_token})
                         return response, 200
                     else:
@@ -346,11 +360,13 @@ def market_view_success():
             db_session = app.db_manager.create_session()
 
             try:
+                stripe_email = stripe_session.customer_details.email
                 new_user = LoginInfoHOF(
                     uid=uid,
                     email=email,
                     name=name,
                     password=hashed_password,
+                    stripe_email=stripe_email,
                     subscription_status='paid'
                 )
                 db_session.add(new_user)
