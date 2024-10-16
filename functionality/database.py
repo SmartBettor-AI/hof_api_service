@@ -1118,8 +1118,8 @@ class database():
                 (MMAOdds.game_id == other_side.game_id) &
                 (MMAOdds.market != other_side.market) &
                 (MMAOdds.market_key == other_side.market_key) &
-                (MMAOdds.pulled_id == other_side.pulled_id) &  # Ensure same pulled_id
-                (other_side.pulled_time == subquery.c.max_pulled_time)  # Ensure latest pulled_time
+                (MMAOdds.pulled_id == other_side.pulled_id) 
+                
             )
         )
 
