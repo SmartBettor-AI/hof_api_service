@@ -511,7 +511,7 @@ class fightOddsIOScraper(MMAScraper):
             for div in table_divs:
                 print(div.get('href'))
                 full_url = self.url + div.get('href')[1:]
-                if 'odds/' in full_url:
+                if 'odds/' in full_url and 'hernandez' in full_url:
                     self.get_odds_per_page(full_url)
                     
 
@@ -1169,13 +1169,13 @@ class fightOddsIOScraper(MMAScraper):
 
         bestFightOdds = None
 
-        try:
-            scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
-            events = scraper.scrape_event_data(i)
-            bestFightOdds = scraper.format_odds()  # This may raise an error
-            bestFightOdds.to_csv('bestFightOdds.csv', index=False)
-        except Exception as e:
-            print(f"Error scraping best fight odds: {e}")
+        # try:
+        #     scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
+        #     events = scraper.scrape_event_data(i)
+        #     bestFightOdds = scraper.format_odds()  # This may raise an error
+        #     bestFightOdds.to_csv('bestFightOdds.csv', index=False)
+        # except Exception as e:
+        #     print(f"Error scraping best fight odds: {e}")
 
         # Check if bestFightOdds was successfully created
         if (
@@ -1265,9 +1265,10 @@ class fightOddsIOScraper(MMAScraper):
         # this_df.to_csv('after_all_collection.csv', index = False)
 
         merged_df.to_csv('before_categorize.csv', index=False)
+        merged_df = self.mark_main_totals(merged_df)
+        merged_df.to_csv('after_marking.csv', index=False)
         merged_df = self.categorize_markets(merged_df)
         merged_df.to_csv('after_categorize.csv', index=False)
-        merged_df = self.mark_main_totals(merged_df)
         merged_df = self.categorize_dropdown(merged_df)
 
 
