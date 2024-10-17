@@ -511,7 +511,7 @@ class fightOddsIOScraper(MMAScraper):
             for div in table_divs:
                 print(div.get('href'))
                 full_url = self.url + div.get('href')[1:]
-                if 'odds/' in full_url and 'hernandez' in full_url:
+                if 'odds/' in full_url:
                     self.get_odds_per_page(full_url)
                     
 
@@ -1169,13 +1169,13 @@ class fightOddsIOScraper(MMAScraper):
 
         bestFightOdds = None
 
-        # try:
-        #     scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
-        #     events = scraper.scrape_event_data(i)
-        #     bestFightOdds = scraper.format_odds()  # This may raise an error
-        #     bestFightOdds.to_csv('bestFightOdds.csv', index=False)
-        # except Exception as e:
-        #     print(f"Error scraping best fight odds: {e}")
+        try:
+            scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
+            events = scraper.scrape_event_data(i)
+            bestFightOdds = scraper.format_odds()  # This may raise an error
+            bestFightOdds.to_csv('bestFightOdds.csv', index=False)
+        except Exception as e:
+            print(f"Error scraping best fight odds: {e}")
 
         # Check if bestFightOdds was successfully created
         if (
