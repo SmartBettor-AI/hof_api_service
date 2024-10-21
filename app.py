@@ -502,7 +502,7 @@ def market_view():
         return jsonify({'message': 'Welcome to the Market View!', 'user_email': current_user['email']})
     except (ExpiredSignatureError, InvalidTokenError):
         # This will catch any JWT-related errors that weren't caught by the decorators
-        return redirect(f'https://app.homeoffightpicks.com/login')
+        return jsonify({"message": "Token has expired"}), 401
     
 
 @jwt.expired_token_loader
@@ -515,7 +515,7 @@ def invalid_token_callback(error):
 
 @app.errorhandler(JWTExtendedException)
 def handle_jwt_exception(error):
-    return redirect(url_for('login'))  
+    return jsonify({"message": "Token has expired"}), 401
 
 
 
