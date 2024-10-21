@@ -34,7 +34,8 @@ from datetime import datetime, timedelta
 from functionality.models import LoginInfoHOF, VerificationCodeHOF
 from flask_jwt_extended import JWTManager
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
-
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+from flask_jwt_extended.exceptions import JWTExtendedException
 
 
 process = psutil.Process(os.getpid())
@@ -495,9 +496,26 @@ def update_subscription_to_new_product(subscription_id, price_id):
 @app.route('/api/market_view')
 @jwt_required()
 def market_view():
-    current_user = get_jwt_identity()
-    logger.info(f"User {current_user['email']} is accessing the market view.")
-    return jsonify({'message': 'Welcome to the Market View!', 'user_email': current_user['email']})
+    try:
+        current_user = get_jwt_identity()
+        logger.info(f"User {current_user['email']} is accessing the market view.")
+        return jsonify({'message': 'Welcome to the Market View!', 'user_email': current_user['email']})
+    except (ExpiredSignatureError, InvalidTokenError):
+        # This will catch any JWT-related errors that weren't caught by the decorators
+        return redirect(f'https://app.homeoffightpicks.com/login')
+    
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    return jsonify({"message": "Token has expired"}), 401
+
+@jwt.invalid_token_loader
+def invalid_token_callback(error):
+    return jsonify({"message": "Invalid token"}), 401
+
+@app.errorhandler(JWTExtendedException)
+def handle_jwt_exception(error):
+    return redirect(url_for('login'))  
 
 
 
