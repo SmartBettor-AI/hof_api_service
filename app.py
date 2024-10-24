@@ -38,6 +38,7 @@ from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from flask_jwt_extended.exceptions import JWTExtendedException
 
 
+
 process = psutil.Process(os.getpid())
 
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
