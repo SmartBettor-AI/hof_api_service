@@ -29,6 +29,8 @@ from datetime import datetime, timedelta
 import uuid
 import redis
 from sqlalchemy import desc, func, select, text
+from prize_picks_api_caller import PrizePicksApiCaller
+from underdog_api_caller import UnderdogApiCaller
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 class MMAScraper:
@@ -604,7 +606,9 @@ class fightOddsIOScraper(MMAScraper):
             df['class_name'] = class_names
             df.to_csv('oddstable.csv')
             df = df.rename(columns={'Fighters': 'market'})
-            df = df.drop(columns=['Unnamed: 17'])
+            for col in ['Unnamed: 18', 'Unnamed: 17']:
+                if col in df.columns:
+                    df = df.drop(columns=[col])
 
             columns_to_check = df.columns.difference(['market', 'class_name'])
 
@@ -647,19 +651,7 @@ class fightOddsIOScraper(MMAScraper):
         except Exception as e:
             print(f"An error occurred: {e}")
             return  # Return on any error
-    # Burns v Brady fight
-    # Fight Lines: Moneylines, draw, main totals (grouped), fight to go the distance
-    # Round props: FIghter Wins in round 1, 2, 3, inside distance 
-
-    # Methd of victory: 
-    #   Wins by KO/TKO/DQ (grouped by round)
-    #   Wins by submission (grouped by round)
-    #   Wins by decision (grouped by decision)
-    ##############
-
-    # Other props:
-    #   Fight doesn't end in split or majority
-    #   Fight ends in split or majority
+   
     def get_mma_data_for_cache(self):
         cache_key = "mma_data"
         event_data = self.get_mma_data()
@@ -927,6 +919,15 @@ class fightOddsIOScraper(MMAScraper):
                 if "distance" in market:
                     return 'Distance (Y/N)'
                 
+                if 'fantasy' in market:
+                    return 'Fantasy Score'
+                
+                if 'significant' in market:
+                    return 'Significant Strikes'
+                
+                if 'takedowns' in market:
+                    return 'Takedowns'
+                
 
                 ###handle the round prop others
 
@@ -940,9 +941,6 @@ class fightOddsIOScraper(MMAScraper):
                     return 'Other props'
                 
                 
-
-                if 'significant' in market:
-                    return 'Other props'
                 
                 if ' or ' in market and ('decision' in market or 'submission' in market):
                     return 'Double Chance'
@@ -1191,6 +1189,8 @@ class fightOddsIOScraper(MMAScraper):
             print("bestFightOdds is empty or was not created. Skipping merge operation.")
             merged_df = total_df.copy()
 
+
+
         # Drop columns from bestFightOdds that conflict with total_df
         # This will remove columns like 'team_bestFightOdds', keeping only the ones from total_df
         for col in merged_df.columns:
@@ -1208,6 +1208,39 @@ class fightOddsIOScraper(MMAScraper):
 
                 # Save or return the final merged DataFrame
                 merged_df.to_csv('merged_output.csv', index=False)
+
+        
+        ####Prize Picks API Caller
+        prize_picks_api_caller = PrizePicksApiCaller()
+        prize_picks_df = prize_picks_api_caller.run()
+        prize_picks_df.to_csv('prize_picks_output.csv', index=False)
+
+        merged_df = pd.merge(merged_df, prize_picks_df, on=['market', 'game_id'], how='outer')
+        common_columns = [col.replace('_x', '') for col in merged_df.columns if col.endswith('_x')]
+
+        # Combine _x and _y columns
+        for col in common_columns:
+            # Coalesce the columns (take first non-null value)
+            merged_df[col] = merged_df[f'{col}_x'].combine_first(merged_df[f'{col}_y'])
+            # Drop the _x and _y columns
+            merged_df = merged_df.drop([f'{col}_x', f'{col}_y'], axis=1)
+        
+
+        underdog_api_caller = UnderdogApiCaller()
+        underdog_df = underdog_api_caller.run()
+        underdog_df.to_csv('underdog_output.csv', index=False)
+
+        merged_df = pd.merge(merged_df, underdog_df, on=['market', 'game_id'], how='outer')
+        # Combine _x and _y columns
+        for col in common_columns:
+            # Coalesce the columns (take first non-null value)
+            merged_df[col] = merged_df[f'{col}_x'].combine_first(merged_df[f'{col}_y'])
+            # Drop the _x and _y columns
+            merged_df = merged_df.drop([f'{col}_x', f'{col}_y'], axis=1)
+
+
+
+
 
 
 
@@ -1437,6 +1470,8 @@ class fightOddsIOScraper(MMAScraper):
         pattern = r'(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}$'
 
         parts = name.split(':')
+        if 'Fight Night' in name:
+            return re.sub(pattern, '', name).strip()
     
         if len(parts) > 2:
             # Return the first two parts if there are three or more segments
