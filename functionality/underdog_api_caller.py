@@ -25,9 +25,9 @@ class UnderdogApiCaller:
         self.filtered_data: List[Dict] = []
         self.db_manager = DBManager()
         metadata = MetaData(bind=self.db_manager.get_engine())
-        self.mma_games = Table('mma_games_backup', metadata, autoload_with=self.db_manager.get_engine())
-        self.mma_odds = Table('mma_odds_test', metadata, autoload_with=self.db_manager.get_engine())
-        self.mma_events = Table('mma_events_backup', metadata, autoload_with=self.db_manager.get_engine())
+        self.mma_games = Table('mma_games', metadata, autoload_with=self.db_manager.get_engine())
+        self.mma_odds = Table('mma_odds_recent', metadata, autoload_with=self.db_manager.get_engine())
+        self.mma_events = Table('mma_events', metadata, autoload_with=self.db_manager.get_engine())
         self.unique_name_df = pd.DataFrame()
 
     def fetch_data(self) -> bool:
