@@ -1213,30 +1213,42 @@ class fightOddsIOScraper(MMAScraper):
         ####Prize Picks API Caller
         prize_picks_api_caller = PrizePicksApiCaller()
         prize_picks_df = prize_picks_api_caller.run()
-        prize_picks_df.to_csv('prize_picks_output.csv', index=False)
 
-        merged_df = pd.merge(merged_df, prize_picks_df, on=['market', 'game_id'], how='outer')
-        common_columns = [col.replace('_x', '') for col in merged_df.columns if col.endswith('_x')]
+        if prize_picks_df is not None and not prize_picks_df.empty:
+            prize_picks_df.to_csv('prize_picks_output.csv', index=False)
+            
+            # Perform merge with PrizePicks data
+            merged_df = pd.merge(merged_df, prize_picks_df, on=['market', 'game_id'], how='outer')
+            common_columns = [col.replace('_x', '') for col in merged_df.columns if col.endswith('_x')]
 
-        # Combine _x and _y columns
-        for col in common_columns:
-            # Coalesce the columns (take first non-null value)
-            merged_df[col] = merged_df[f'{col}_x'].combine_first(merged_df[f'{col}_y'])
-            # Drop the _x and _y columns
-            merged_df = merged_df.drop([f'{col}_x', f'{col}_y'], axis=1)
-        
+            # Combine _x and _y columns
+            for col in common_columns:
+                merged_df[col] = merged_df[f'{col}_x'].combine_first(merged_df[f'{col}_y'])
+                merged_df = merged_df.drop([f'{col}_x', f'{col}_y'], axis=1)
+        else:
+            print("Warning: No data received from PrizePicks API, skipping merge")
 
+        # Fetch and validate Underdog data
         underdog_api_caller = UnderdogApiCaller()
         underdog_df = underdog_api_caller.run()
-        underdog_df.to_csv('underdog_output.csv', index=False)
 
-        merged_df = pd.merge(merged_df, underdog_df, on=['market', 'game_id'], how='outer')
-        # Combine _x and _y columns
-        for col in common_columns:
-            # Coalesce the columns (take first non-null value)
-            merged_df[col] = merged_df[f'{col}_x'].combine_first(merged_df[f'{col}_y'])
-            # Drop the _x and _y columns
-            merged_df = merged_df.drop([f'{col}_x', f'{col}_y'], axis=1)
+        if underdog_df is not None and not underdog_df.empty:
+            underdog_df.to_csv('underdog_output.csv', index=False)
+            
+            # Perform merge with Underdog data
+            merged_df = pd.merge(merged_df, underdog_df, on=['market', 'game_id'], how='outer')
+            # Combine _x and _y columns
+            for col in common_columns:
+                merged_df[col] = merged_df[f'{col}_x'].combine_first(merged_df[f'{col}_y'])
+                merged_df = merged_df.drop([f'{col}_x', f'{col}_y'], axis=1)
+        else:
+            print("Warning: No data received from Underdog API, skipping merge")
+
+        # Save final merged result
+        if not merged_df.empty:
+            merged_df.to_csv('final_merged_output.csv', index=False)
+        else:
+            print("Error: No data in final merged DataFrame")
 
 
 
