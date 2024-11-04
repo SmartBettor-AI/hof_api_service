@@ -513,7 +513,7 @@ class fightOddsIOScraper(MMAScraper):
             for div in table_divs:
                 print(div.get('href'))
                 full_url = self.url + div.get('href')[1:]
-                if 'odds/' in full_url:
+                if 'odds/' in full_url and 'magny' in full_url:
                     self.get_odds_per_page(full_url)
                     
 
@@ -1013,17 +1013,25 @@ class fightOddsIOScraper(MMAScraper):
             # Check if the market contains "Over" or "Under" and "rounds"
             is_over_under = market.str.contains(r'(Over|Under)', regex=True, case=False) & market.str.contains(r'rounds', regex=True, case=False)
             
+            # Define the list of betting platforms
+            betting_platforms = [
+                'DraftKings', 'BetMGM', 'Caesars', 'BetRivers', 'FanDuel', 
+                'Bet365', 'Unibet', 'PointsBet', 'BetOnline', 
+                'BetAnySports', 'BetUS', 'Cloudbet', 'Jazz', 
+                'MyBookie', 'Pinnacle', 'SXBet', 'Bovada', 
+                'Betway'
+            ]
+            
+            # Filter the betting platforms to only those that exist in the DataFrame
+            existing_platforms = [col for col in betting_platforms if col in df.columns]
+            
             # Check if there are other betting platforms available
-            has_other_odds = df[['DraftKings', 'BetMGM', 'Caesars', 'BetRivers', 'FanDuel', 
-                                'Bet365', 'Unibet', 'PointsBet', 'BetOnline', 
-                                'BetAnySports', 'BetUS', 'Cloudbet', 'Jazz', 
-                                'MyBookie', 'Pinnacle', 'SXBet', 'Bovada', 
-                                'Betway']].notnull().any(axis=1)
+            has_other_odds = df[existing_platforms].notnull().any(axis=1)
             
             # Combine both conditions
             return is_over_under & has_other_odds
 
-        filtered_df = df[is_over_under_rounds(df['market'])].copy()
+        filtered_df = df[is_over_under_rounds(df['market'], df)].copy()
 
         # Step 2: Extract round value
         filtered_df['round_value'] = filtered_df['market'].str.extract(r'(\d+\.?\d*)')[0].astype(float)
@@ -1178,13 +1186,13 @@ class fightOddsIOScraper(MMAScraper):
 
         bestFightOdds = None
 
-        try:
-            scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
-            events = scraper.scrape_event_data(i)
-            bestFightOdds = scraper.format_odds()  # This may raise an error
-            bestFightOdds.to_csv('bestFightOdds.csv', index=False)
-        except Exception as e:
-            print(f"Error scraping best fight odds: {e}")
+        # try:
+        #     scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
+        #     events = scraper.scrape_event_data(i)
+        #     bestFightOdds = scraper.format_odds()  # This may raise an error
+        #     bestFightOdds.to_csv('bestFightOdds.csv', index=False)
+        # except Exception as e:
+        #     print(f"Error scraping best fight odds: {e}")
 
         # Check if bestFightOdds was successfully created
         if (
@@ -1371,7 +1379,27 @@ class fightOddsIOScraper(MMAScraper):
 
 
 
-             
+    def market_key_map(self, row, first_totals_over_under):
+        if pd.isna(row['class_name']) or row['class_name'].strip() == '':
+            first_totals_over_under[0] = False
+            first_totals_over_under[1] = False
+            return 'h2h'
+        
+        if 'Over' in row['market']:
+            if first_totals_over_under[0] == False and row['highest_bettable_odds'] >= 1.4 and row['highest_bettable_odds'] <= 3.5:
+                first_totals_over_under[0] = True
+                return 'Main Total Over'
+            else:
+                return 'totals'
+                
+        elif 'Under' in row['market']:
+            if first_totals_over_under[1] == False and row['highest_bettable_odds'] >= 1.4 and row['highest_bettable_odds'] <= 3.5:
+                first_totals_over_under[1] = True
+                return 'Main Total Under'
+            else: 
+                return 'totals'
+        else:
+            return ''
 
     def add_priority_column(self, merged_df):
         # Function to extract priority number from 'market' and add a 'priority' column
