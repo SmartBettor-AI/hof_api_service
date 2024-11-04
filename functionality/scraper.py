@@ -1009,8 +1009,19 @@ class fightOddsIOScraper(MMAScraper):
         df['avg_mkt_odds'] = df[existing_columns].mean(axis=1)
 
 
-        def is_over_under_rounds(market):
-            return market.str.contains(r'(Over|Under)', regex=True)
+        def is_over_under_rounds(market, df):
+            # Check if the market contains "Over" or "Under" and "rounds"
+            is_over_under = market.str.contains(r'(Over|Under)', regex=True, case=False) & market.str.contains(r'rounds', regex=True, case=False)
+            
+            # Check if there are other betting platforms available
+            has_other_odds = df[['DraftKings', 'BetMGM', 'Caesars', 'BetRivers', 'FanDuel', 
+                                'Bet365', 'Unibet', 'PointsBet', 'BetOnline', 
+                                'BetAnySports', 'BetUS', 'Cloudbet', 'Jazz', 
+                                'MyBookie', 'Pinnacle', 'SXBet', 'Bovada', 
+                                'Betway']].notnull().any(axis=1)
+            
+            # Combine both conditions
+            return is_over_under & has_other_odds
 
         filtered_df = df[is_over_under_rounds(df['market'])].copy()
 
@@ -1545,28 +1556,7 @@ class fightOddsIOScraper(MMAScraper):
         
         finally:
             session.close()    
-    def market_key_map(self, row, first_totals_over_under):
-        if pd.isna(row['class_name']) or row['class_name'].strip() == '':
-            first_totals_over_under[0] = False
-            first_totals_over_under[1] = False
-            return 'h2h'
-        
-        if 'Over' in row['market']:
-            if first_totals_over_under[0] == False and row['highest_bettable_odds'] >= 1.4 and row['highest_bettable_odds'] <= 3.5:
-                first_totals_over_under[0] = True
-                return 'Main Total Over'
-            else:
-                return 'totals'
-                
-        elif 'Under' in row['market']:
-            if first_totals_over_under[1] == False and row['highest_bettable_odds'] >= 1.4 and row['highest_bettable_odds'] <= 3.5:
-                first_totals_over_under[1] = True
-                return 'Main Total Under'
-            else: 
-                return 'totals'
-        else:
-            return ''
-
+ 
     def find_matching_columns(self, row, bettable_books):
         matching_cols = [col.title() for col in bettable_books if row[col] == row['highest_bettable_odds']]
         return list(set(matching_cols))
