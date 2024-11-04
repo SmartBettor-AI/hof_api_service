@@ -1232,6 +1232,8 @@ class fightOddsIOScraper(MMAScraper):
         ####Prize Picks API Caller
         prize_picks_api_caller = PrizePicksApiCaller()
         prize_picks_df = prize_picks_api_caller.run()
+        ## Fill the prize_picks_df['pulled_id'] with the pulled_id from merged_df
+        prize_picks_df['pulled_id'] = pulled_id  
 
         if prize_picks_df is not None and not prize_picks_df.empty:
             prize_picks_df.to_csv('prize_picks_output.csv', index=False)
@@ -1250,6 +1252,7 @@ class fightOddsIOScraper(MMAScraper):
         # Fetch and validate Underdog data
         underdog_api_caller = UnderdogApiCaller()
         underdog_df = underdog_api_caller.run()
+        underdog_df['pulled_id'] = pulled_id
 
         if underdog_df is not None and not underdog_df.empty:
             underdog_df.to_csv('underdog_output.csv', index=False)
