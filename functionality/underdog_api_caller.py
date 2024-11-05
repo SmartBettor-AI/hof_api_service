@@ -84,10 +84,9 @@ class UnderdogApiCaller:
         df.to_csv('underdog_data.csv', index=False)
         rows = []
         return_pp_df = pd.DataFrame(columns=[
-            'market', 'BetOnline', 'Bovada', 'Jazz', 'MyBookie', 
-            'BetAnySports', 'BetUS', 'DraftKings', 'FanDuel', 
-            'Pinnacle', 'Betway', 'BetRivers', 'BetMGM', 
-            'Caesars', 'SXBet', 'Cloudbet', 'prizepicks', 'class_name', 
+            'market', 'DraftKings', 'FanDuel', 
+            'BetRivers', 'BetMGM', 
+            'Caesars', 'underdog', 'class_name', 
             'fight_name', 'game_date', 'pulled_id', 
             'matchup', 'home_team', 'away_team', 
             'game_id', 'event_id'
@@ -179,21 +178,14 @@ class UnderdogApiCaller:
             rows.append({
                 'market': market,
                 'class_name': 'pp',
-                'BetOnline': None,  # or '' for empty string
-                'Bovada': None,
-                'Jazz': None,
-                'MyBookie': None,
-                'BetAnySports': None,
-                'BetUS': None,
+                
                 'DraftKings': None,
                 'FanDuel': None,
-                'Pinnacle': None,
-                'Betway': None,
+                
                 'BetRivers': None,
                 'BetMGM': None,
                 'Caesars': None,
-                'SXBet': None,
-                'Cloudbet': None,
+                
                 'underdog': row['american_odds'],
                 'fight_name': my_event_id,
                 'game_date': game_date,

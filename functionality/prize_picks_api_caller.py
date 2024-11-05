@@ -68,10 +68,9 @@ class PrizePicksApiCaller:
         df = pd.json_normalize(self.filtered_data)
         rows = []
         return_pp_df = pd.DataFrame(columns=[
-            'market', 'BetOnline', 'Bovada', 'Jazz', 'MyBookie', 
-            'BetAnySports', 'BetUS', 'DraftKings', 'FanDuel', 
-            'Pinnacle', 'Betway', 'BetRivers', 'BetMGM', 
-            'Caesars', 'SXBet', 'Cloudbet', 'prizepicks', 'class_name', 
+            'market', 'DraftKings', 'FanDuel', 
+            'BetRivers', 'BetMGM', 
+            'Caesars',  'prizepicks', 'class_name', 
             'fight_name', 'game_date', 'pulled_id', 
             'matchup', 'home_team', 'away_team', 
             'game_id', 'event_id'
@@ -109,21 +108,13 @@ class PrizePicksApiCaller:
             rows.append({
                 'market': market_over,
                 'class_name': 'pp',
-                'BetOnline': None, 
-                'Bovada': None,
-                'Jazz': None,
-                'MyBookie': None,
-                'BetAnySports': None,
-                'BetUS': None,
                 'DraftKings': None,
                 'FanDuel': None,
-                'Pinnacle': None,
-                'Betway': None,
+            
                 'BetRivers': None,
                 'BetMGM': None,
                 'Caesars': None,
-                'SXBet': None,
-                'Cloudbet': None,
+                
                 'prizepicks': '-119',
                 'fight_name': my_event_id,
                 'game_date': game_date,
@@ -138,21 +129,14 @@ class PrizePicksApiCaller:
             rows.append({
                 'market': market_under,
                 'class_name': 'pp',
-                'BetOnline': None,  # or '' for empty string
-                'Bovada': None,
-                'Jazz': None,
-                'MyBookie': None,
-                'BetAnySports': None,
-                'BetUS': None,
+
                 'DraftKings': None,
                 'FanDuel': None,
-                'Pinnacle': None,
-                'Betway': None,
+                
                 'BetRivers': None,
                 'BetMGM': None,
                 'Caesars': None,
-                'SXBet': None,
-                'Cloudbet': None,
+                
                 'prizepicks': '-119',
                 'fight_name': my_event_id,
                 'game_date': game_date,

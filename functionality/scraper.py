@@ -614,7 +614,7 @@ class fightOddsIOScraper(MMAScraper):
 
             # Step 2: Drop rows where all specified columns are NaN
             df = df.dropna(subset=columns_to_check, how='all')
-            df = df.drop(columns=['BetOnline', 'Bovada', 'Jazz', 'MyBookie', 'BetAnySports', 'BetUS', 'Bookmaker', 'Betway', 'SXBet', 'Cloudbet'])
+            df = df.drop(columns=['BetOnline', 'Bovada', 'Pinnacle', 'Jazz', 'MyBookie', 'BetAnySports', 'BetUS', 'Bookmaker', 'Betway', 'SXBet', 'Cloudbet'])
 
             name_and_date = self.find_fight_name_and_date(soup)
             df['fight_name'] = name_and_date[0]
@@ -999,7 +999,7 @@ class fightOddsIOScraper(MMAScraper):
         desired_columns = [
             'DraftKings', 'BetMGM', 'Caesars', 'BetRivers', 'FanDuel', 'Bet365', 'Unibet', 'PointsBet', 
             'BetOnline', 'BetAnySports', 'BetUS', 'Cloudbet', 'Jazz', 'MyBookie', 'Pinnacle', 'SXBet', 
-            'Bovada', 'Betway'
+            'Bovada', 'Betway', 'underdog', 'prizepicks'
         ]
 
         # Find which of the desired columns are actually present in the DataFrame
@@ -1190,8 +1190,9 @@ class fightOddsIOScraper(MMAScraper):
             scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
             events = scraper.scrape_event_data(i)
             bestFightOdds = scraper.format_odds()  # This may raise an error
-            bestFightOdds = bestFightOdds.drop(columns=['Unibet', 'BetWay', 'Bet365'])
             bestFightOdds.to_csv('bestFightOdds.csv', index=False)
+            bestFightOdds = bestFightOdds.drop(columns=['Unibet', 'BetWay', 'Bet365'])
+            
         except Exception as e:
             print(f"Error scraping best fight odds: {e}")
 
@@ -1303,7 +1304,7 @@ class fightOddsIOScraper(MMAScraper):
         # Calculate the maximum odds for each row   
         merged_df['highest_bettable_odds'] = merged_df[odds_cols].max(axis=1)
 
-        exclude_columns.append('highest_bettable_odds')
+        exclude_columns.append('highest_bettable_odds')     
 
         # Calculate the average bettable odds, ignoring NaN values
         merged_df['average_bettable_odds'] = merged_df[odds_cols].mean(axis=1, skipna=True)
@@ -1332,12 +1333,11 @@ class fightOddsIOScraper(MMAScraper):
 
         exclude_columns.append('market_key')
         # Generate the `my_game_id` for the current row
-
+        
         merged_df = merged_df.replace({np.nan: None})
-        # dropp all rows where every col in odds_cols is nan
-        merged_df = merged_df[odds_cols].notna().all(axis=1)
+  
         merged_df['odds'] = merged_df.apply(lambda row: json.dumps({col: row[col] for col in odds_cols}), axis=1)
-        # this_df.to_csv('after_all_collection.csv', index = False)
+  
 
         merged_df.to_csv('before_categorize.csv', index=False)
         merged_df = self.mark_main_totals(merged_df)
