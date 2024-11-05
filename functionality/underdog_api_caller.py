@@ -67,7 +67,7 @@ class UnderdogApiCaller:
                 row_dict['over_under'] = i['options'][count]['choice_display']
                 payout_multiplier = i['options'][count]['payout_multiplier']
                 row_dict['payout_multiplier'] = payout_multiplier
-                decimal_odds = (10 * float(payout_multiplier)) / (1.7782 * 1.7782 * 1.7782)
+                decimal_odds = (20 * float(payout_multiplier)) / (1.82 * 1.82 * 1.82 * 1.82)
                 row_dict['decimal_odds'] = decimal_odds
                  # Convert decimal odds to American odds
                 if decimal_odds >= 2.00:
