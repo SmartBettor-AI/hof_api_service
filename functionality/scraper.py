@@ -614,7 +614,7 @@ class fightOddsIOScraper(MMAScraper):
 
             # Step 2: Drop rows where all specified columns are NaN
             df = df.dropna(subset=columns_to_check, how='all')
-            df = df.drop(columns=['4casters'])
+            df = df.drop(columns=['BetOnline', 'Bovada', 'Jazz', 'MyBookie', 'BetAnySports', 'BetUS', 'Bookmaker', 'Betway', 'SXBet', 'Cloudbet'])
 
             name_and_date = self.find_fight_name_and_date(soup)
             df['fight_name'] = name_and_date[0]
@@ -1190,6 +1190,7 @@ class fightOddsIOScraper(MMAScraper):
             scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
             events = scraper.scrape_event_data(i)
             bestFightOdds = scraper.format_odds()  # This may raise an error
+            bestFightOdds = bestFightOdds.drop(columns=['Unibet', 'BetWay', 'Bet365'])
             bestFightOdds.to_csv('bestFightOdds.csv', index=False)
         except Exception as e:
             print(f"Error scraping best fight odds: {e}")
@@ -1259,10 +1260,15 @@ class fightOddsIOScraper(MMAScraper):
             
             # Perform merge with Underdog data
             merged_df = pd.merge(merged_df, underdog_df, on=['market', 'game_id'], how='outer')
+            
+            # Get new common columns for Underdog merge
+            ud_common_columns = [col.replace('_x', '') for col in merged_df.columns if col.endswith('_x')]
+            
             # Combine _x and _y columns
-            for col in common_columns:
-                merged_df[col] = merged_df[f'{col}_x'].combine_first(merged_df[f'{col}_y'])
-                merged_df = merged_df.drop([f'{col}_x', f'{col}_y'], axis=1)
+            for col in ud_common_columns:
+                if f'{col}_x' in merged_df.columns and f'{col}_y' in merged_df.columns:
+                    merged_df[col] = merged_df[f'{col}_x'].combine_first(merged_df[f'{col}_y'])
+                    merged_df = merged_df.drop([f'{col}_x', f'{col}_y'], axis=1)
         else:
             print("Warning: No data received from Underdog API, skipping merge")
 
@@ -1328,6 +1334,8 @@ class fightOddsIOScraper(MMAScraper):
         # Generate the `my_game_id` for the current row
 
         merged_df = merged_df.replace({np.nan: None})
+        # dropp all rows where every col in odds_cols is nan
+        merged_df = merged_df[odds_cols].notna().all(axis=1)
         merged_df['odds'] = merged_df.apply(lambda row: json.dumps({col: row[col] for col in odds_cols}), axis=1)
         # this_df.to_csv('after_all_collection.csv', index = False)
 

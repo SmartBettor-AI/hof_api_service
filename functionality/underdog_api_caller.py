@@ -94,6 +94,8 @@ class UnderdogApiCaller:
         ])
 
         self.unique_name_df = self.get_unique_name_combinations()
+        self.unique_name_df = self.unique_name_df.dropna(subset=['favored_team', 'underdog_team'])
+        self.unique_name_df.to_csv('unique_name_df.csv', index=False)
        
         for index, row in df.iterrows():
             line_score = float(row['stat_value'])
@@ -133,9 +135,9 @@ class UnderdogApiCaller:
 
             elif stat_display_name == 'Finishes':
                 if over_under == 'Higher':
-                    market = f'{matched_last_name}'
+                    market = f'{matched_name}'
                 else:
-                    market = f"{matched_last_name}"
+                    market = f"{matched_name}"
 
             elif stat_display_name == '1st Round Finish':
                 if over_under == 'Higher':

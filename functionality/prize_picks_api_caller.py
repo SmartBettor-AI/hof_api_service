@@ -78,7 +78,9 @@ class PrizePicksApiCaller:
         ])
 
         self.unique_name_df = self.get_unique_name_combinations()
-        df.to_csv('pp_df.csv', index=False)
+        #Drop the rows where the favored_team or underdog_team is nan
+        self.unique_name_df = self.unique_name_df.dropna(subset=['favored_team', 'underdog_team'])
+        self.unique_name_df.to_csv('unique_name_df.csv', index=False)
 
 
         for index, row in df.iterrows():
