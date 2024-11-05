@@ -614,7 +614,7 @@ class fightOddsIOScraper(MMAScraper):
 
             # Step 2: Drop rows where all specified columns are NaN
             df = df.dropna(subset=columns_to_check, how='all')
-            df = df.drop(columns=['BetOnline', '4Casters','Bovada', 'Pinnacle', 'Jazz', 'MyBookie', 'BetAnySports', 'BetUS', 'Bookmaker', 'Betway', 'SXBet', 'Cloudbet'])
+            df = df.drop(columns=['BetOnline', '4casters','Bovada', 'Pinnacle', 'Jazz', 'MyBookie', 'BetAnySports', 'BetUS', 'Bookmaker', 'Betway', 'SXBet', 'Cloudbet'])
 
             name_and_date = self.find_fight_name_and_date(soup)
             df['fight_name'] = name_and_date[0]
