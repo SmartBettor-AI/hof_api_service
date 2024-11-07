@@ -107,7 +107,7 @@ class PrizePicksApiCaller:
 
             rows.append({
                 'market': market_over,
-                'class_name': 'pp',
+                'class_name': 'pr',
                 'DraftKings': None,
                 'FanDuel': None,
             
@@ -128,7 +128,7 @@ class PrizePicksApiCaller:
             
             rows.append({
                 'market': market_under,
-                'class_name': 'pp',
+                'class_name': 'pr',
 
                 'DraftKings': None,
                 'FanDuel': None,

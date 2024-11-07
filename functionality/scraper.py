@@ -154,7 +154,7 @@ class BestFightOddsScraper(MMAScraper):
         # Process the extracted divs as needed
         for div in table_divs:
             h1_tag = div.find("h1")
-            if ("Future" in h1_tag.text) or ('magny' not in h1_tag.text):
+            if "Future" in h1_tag.text:
                 continue
             span_tag = div.find('span')
             if h1_tag:
@@ -513,7 +513,7 @@ class fightOddsIOScraper(MMAScraper):
             for div in table_divs:
                 print(div.get('href'))
                 full_url = self.url + div.get('href')[1:]
-                if 'odds/' in full_url and 'magny' in full_url:
+                if 'odds/' in full_url:
                     self.get_odds_per_page(full_url)
                     
 
