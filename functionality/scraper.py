@@ -403,7 +403,7 @@ class BestFightOddsScraper(MMAScraper):
             session.close()    
 
     def market_key_map(self, row, first_totals_over_under):
-        if pd.isna(row['class_name']) or row['class_name'].strip() == '' or row['class_name'] == 'pp':
+        if pd.isna(row['class_name']) or row['class_name'].strip() == '':
             first_totals_over_under[0] = False
             first_totals_over_under[0] = False
             return 'h2h'
@@ -1392,7 +1392,7 @@ class fightOddsIOScraper(MMAScraper):
 
 
     def market_key_map(self, row, first_totals_over_under):
-        if pd.isna(row['class_name']) or row['class_name'].strip() == '' or row['class_name'] == 'pp':
+        if pd.isna(row['class_name']) or row['class_name'].strip() == '':
             first_totals_over_under[0] = False
             first_totals_over_under[1] = False
             return 'h2h'

@@ -101,6 +101,7 @@ class UnderdogApiCaller:
             over_under = row['over_under']
             stat_display_name = row['stat']
             bet_title = row['title']
+            class_name = 'pr'
 
 
             game_id, game_date, matched_name, other_name, event_id, my_event_id, fighter_name_parsed = self.get_fighters_info_from_db(bet_title)
@@ -133,6 +134,7 @@ class UnderdogApiCaller:
                     market = f"{matched_last_name} doesn't win by submission"
 
             elif stat_display_name == 'Finishes':
+                class_name = ''
                 if over_under == 'Higher':
                     market = f'{matched_name}'
                 else:
@@ -177,7 +179,7 @@ class UnderdogApiCaller:
             
             rows.append({
                 'market': market,
-                'class_name': 'pp',
+                'class_name': class_name,
                 
                 'DraftKings': None,
                 'FanDuel': None,
