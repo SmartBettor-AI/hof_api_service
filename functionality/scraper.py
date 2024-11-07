@@ -154,7 +154,7 @@ class BestFightOddsScraper(MMAScraper):
         # Process the extracted divs as needed
         for div in table_divs:
             h1_tag = div.find("h1")
-            if "Future" in h1_tag.text:
+            if ("Future" in h1_tag.text) or ('magny' not in h1_tag.text):
                 continue
             span_tag = div.find('span')
             if h1_tag:
@@ -403,7 +403,7 @@ class BestFightOddsScraper(MMAScraper):
             session.close()    
 
     def market_key_map(self, row, first_totals_over_under):
-        if pd.isna(row['class_name']) or row['class_name'].strip() == '':
+        if pd.isna(row['class_name']) or row['class_name'].strip() == '' or row['class_name'] == 'pp':
             first_totals_over_under[0] = False
             first_totals_over_under[0] = False
             return 'h2h'
@@ -513,7 +513,7 @@ class fightOddsIOScraper(MMAScraper):
             for div in table_divs:
                 print(div.get('href'))
                 full_url = self.url + div.get('href')[1:]
-                if 'odds/' in full_url:
+                if 'odds/' in full_url and 'magny' in full_url:
                     self.get_odds_per_page(full_url)
                     
 
@@ -1316,6 +1316,7 @@ class fightOddsIOScraper(MMAScraper):
         merged_df['sportsbooks_used'] = merged_df.apply(lambda row: self.find_matching_columns(row, odds_cols), axis=1)
         
         exclude_columns.append('sportsbooks_used')
+        merged_df.to_csv('before_market_key.csv', index=False)
 
         first_total_flag = [False, False]
 
@@ -1391,7 +1392,7 @@ class fightOddsIOScraper(MMAScraper):
 
 
     def market_key_map(self, row, first_totals_over_under):
-        if pd.isna(row['class_name']) or row['class_name'].strip() == '':
+        if pd.isna(row['class_name']) or row['class_name'].strip() == '' or row['class_name'] == 'pp':
             first_totals_over_under[0] = False
             first_totals_over_under[1] = False
             return 'h2h'
