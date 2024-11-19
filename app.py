@@ -243,7 +243,8 @@ def discord_authorize():
         else:
             logger.info('User is not verified')
             frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
-            return redirect(f"{frontend_url}/login?error='You are not verified for the Home of Fight Picks Discord server.'")
+            error_message = 'You are not verified for the Home of Fight Picks Discord server.'
+            return redirect(f"{frontend_url}/login?error={error_message}")
 
     except Exception as e:
         logger.error(f"Discord OAuth error: {str(e)}", exc_info=True)
