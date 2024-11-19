@@ -1,8 +1,8 @@
 
-from flask import Flask, request, session, redirect, jsonify, url_for, render_template
+from flask import Flask, request, session, redirect, jsonify, url_for, render_template, jsonify, abort
 from flask_socketio import SocketIO
-import plotly as plotly
 from functionality.database import database
+import requests
 import pandas as pd
 import os
 import stripe
@@ -36,7 +36,8 @@ from flask_jwt_extended import JWTManager
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from flask_jwt_extended.exceptions import JWTExtendedException
-
+from authlib.integrations.flask_client import OAuth
+import uuid 
 
 
 process = psutil.Process(os.getpid())
@@ -52,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     app = Flask(__name__, template_folder='static/templates', static_folder='static')
-    CORS(app, resources={r"/*": {"origins": ["https://homeoffightpicks.com", "http://localhost:3000", "https://app.homeoffightpicks.com"]}}, supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": ["https://homeoffightpicks.com", "http://localhost:3000","http://localhost:3001", "https://app.homeoffightpicks.com"]}}, supports_credentials=True)
 
     Compress(app)
     # TODO: Put this key in the secret file
@@ -67,9 +68,30 @@ def create_app():
 
 
 app = create_app()
+
+
+oauth = OAuth(app)
+discord = oauth.register(
+    name='discord',
+    client_id=os.environ.get('DISCORD_CLIENT_ID'),
+    client_secret=os.environ.get('DISCORD_CLIENT_SECRET'),
+    access_token_url='https://discord.com/api/oauth2/token',
+    access_token_params=None,
+    authorize_url='https://discord.com/api/oauth2/authorize',
+    authorize_params=None,
+    api_base_url='https://discord.com/api/users/@me',
+    client_kwargs={
+        'scope': 'identify email guilds guilds.members.read',
+        'response_type': 'code',
+    },
+)
+
+
+
 app.config['REACT_COMPONENT_DIRECTORY'] = os.path.join(app.root_path, 'react_frontend')
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 app.config['SERVER_NAME'] = 'app.homeoffightpicks.com'
+# app.config['SERVER_NAME'] = '127.0.0.1:5000'
 
 jwt = JWTManager(app)
 
@@ -122,6 +144,123 @@ def retry_on_session_error(max_retries=3, delay=1):
         return wrapper
     return decorator
 
+@app.route('/auth/discord')
+def discord_login():
+    """
+    Redirect user to Discord OAuth authorization page
+    """
+    redirect_uri = url_for('discord_authorize', _external=True)
+    return discord.authorize_redirect(redirect_uri)
+
+
+@app.route('/auth/discord/callback')
+def discord_authorize():
+    """
+    Handle Discord OAuth callback
+    """
+    try:
+        logger.info('Starting Discord callback processing')
+        logger.info(f'Received code: {request.args.get("code")}')
+        
+        # Exchange code for token with explicit parameters
+        token = discord.authorize_access_token()
+        logger.info(f'Token response: {token}')  # Be careful not to log this in production
+        
+        if not token:
+            logger.error('No token received from Discord')
+            return jsonify({"error": "No token received"}), 401
+
+        # Make sure we have an access token before proceeding
+        access_token = token.get('access_token')
+        if not access_token:
+            logger.error('No access_token in token response')
+            return jsonify({"error": "No access token"}), 401
+
+        # Use the token to get user info
+        headers = {'Authorization': f'Bearer {access_token}'}
+        user_resp = requests.get('https://discord.com/api/users/@me', headers=headers)
+        
+        if not user_resp.ok:
+            logger.error(f'Failed to get user info: {user_resp.status_code} {user_resp.text}')
+            return jsonify({"error": "Failed to get user info"}), 401
+
+        user_info = user_resp.json()
+        logger.info(f'Successfully got user info: {user_info}')
+
+        # Get guilds
+        guilds_resp = requests.get('https://discord.com/api/users/@me/guilds', headers=headers)
+        
+        if not guilds_resp.ok:
+            logger.error(f'Failed to get guilds: {guilds_resp.status_code} {guilds_resp.text}')
+            return jsonify({"error": "Failed to get guilds"}), 401
+
+        guilds = guilds_resp.json()
+        
+        # Check guild membership and roles
+        target_guild_id = os.environ.get('DISCORD_GUILD_ID')
+        target_role_id = os.environ.get('DISCORD_ROLE_ID')
+        
+        logger.info(f'Checking for guild {target_guild_id} and role {target_role_id}')
+        
+        bot_token = os.environ.get('DISCORD_BOT_TOKEN')
+        if not bot_token:
+            logger.error('Missing DISCORD_BOT_TOKEN environment variable')
+            return jsonify({"error": "Server configuration error"}), 500
+
+        # Use bot token for guild member request
+        bot_headers = {'Authorization': f'Bot {bot_token}'}
+        
+        is_verified = False
+        for guild in guilds:
+            if guild['id'] == target_guild_id:
+                member_resp = requests.get(
+                    f'https://discord.com/api/guilds/{target_guild_id}/members/{user_info["id"]}',
+                    headers=bot_headers  # Use bot headers here
+                )
+                
+                if not member_resp.ok:
+                    logger.error(f'Failed to get member info: {member_resp.status_code} {member_resp.text}')
+                    continue
+
+                member = member_resp.json()
+                if target_role_id in member.get('roles', []):
+                    is_verified = True
+                    break
+
+        if is_verified:
+            logger.info('User is verified')
+            access_token = create_access_token(
+                identity={
+                    'discord_id': user_info['id'],
+                    'username': user_info['username'],
+                    'email': user_info.get('email'),
+                    'is_verified': True
+                },
+                expires_delta=timedelta(days=7)
+            )
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+            return redirect(f"{frontend_url}/market_view?token={access_token}")
+        else:
+            logger.info('User is not verified')
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+            return redirect(f"{frontend_url}/login")
+
+    except Exception as e:
+        logger.error(f"Discord OAuth error: {str(e)}", exc_info=True)
+        return jsonify({
+            "error": "Authentication failed",
+            "details": str(e),
+            "type": type(e).__name__
+        }), 401
+   
+
+@app.route('/logout')
+def logout():
+    """
+    Logout route to clear session
+    """
+    session.clear()
+    return redirect(url_for('login'))
 
 
 
