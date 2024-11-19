@@ -144,7 +144,7 @@ def retry_on_session_error(max_retries=3, delay=1):
         return wrapper
     return decorator
 
-@app.route('/auth/discord')
+@app.route('/api/auth/discord')
 def discord_login():
     """
     Redirect user to Discord OAuth authorization page
@@ -153,7 +153,7 @@ def discord_login():
     return discord.authorize_redirect(redirect_uri)
 
 
-@app.route('/auth/discord/callback')
+@app.route('/api/auth/discord/callback')
 def discord_authorize():
     """
     Handle Discord OAuth callback
