@@ -30,7 +30,7 @@ class WelcomeBot(commands.Bot):
                     "• Access to our exclusive market view\n"
                     "• Real-time updates on fight odds\n"
                     "• Premium analysis and insights\n\n"
-                    "If you have any questions, feel free to ask in our support channel!"
+                    "Head to https://homeoffightpicks.com to enter the HOF portal!"
                 )
                 
                 # Try to DM the user
