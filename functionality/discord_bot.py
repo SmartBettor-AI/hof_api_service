@@ -25,7 +25,7 @@ class WelcomeBot(commands.Bot):
         if any(role.id == target_role_id for role in after.roles) and not any(role.id == target_role_id for role in before.roles):
             try:
                 welcome_message = (
-                    f"Welcome to Home of Fight Picks, {after.mention}! 🎉\n\n"
+                    f"Welcome to the Home of Fight Picks Portal, {after.mention}! 🎉\n\n"
                     "Thank you for joining our premium membership. Here's what you can expect:\n"
                     "• Access to our exclusive market view\n"
                     "• Real-time updates on fight odds\n"
