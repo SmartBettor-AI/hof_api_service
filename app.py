@@ -175,6 +175,7 @@ def discord_authorize():
     """
     try:
         logger.info('Starting Discord callback processing')
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
         
         # Verify state
         state = request.args.get('state')
@@ -182,20 +183,60 @@ def discord_authorize():
         
         if not state or not stored_state or state != stored_state:
             logger.error(f'State mismatch. Received: {state}, Stored: {stored_state}')
-            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
             return redirect(f"{frontend_url}/login?error=Authentication failed")
             
         # Clear the state
         session.pop('oauth_state', None)
         
-        # Rest of your existing code...
+        # Get token
         token = discord.authorize_access_token()
-        
         if not token:
             logger.error('No token received from Discord')
-            return jsonify({"error": "No token received"}), 401
-            
-        # ... rest of your existing code ...
+            return redirect(f"{frontend_url}/login?error=No token received")
+
+        # Get user info
+        resp = discord.get('users/@me')
+        user_info = resp.json()
+        if not user_info:
+            logger.error('No user info received')
+            return redirect(f"{frontend_url}/login?error=No user info received")
+
+        # Get guilds
+        guilds_resp = discord.get('users/@me/guilds')
+        guilds = guilds_resp.json()
+
+        # Bot token for member verification
+        bot_token = os.environ.get('DISCORD_BOT_TOKEN')
+        target_guild_id = os.environ.get('DISCORD_GUILD_ID')
+        target_role_id = os.environ.get('DISCORD_ROLE_ID')
+        
+        bot_headers = {
+            'Authorization': f'Bot {bot_token}'
+        }
+
+        is_verified = False
+        for guild in guilds:
+            if guild['id'] == target_guild_id:
+                member_resp = requests.get(
+                    f'https://discord.com/api/guilds/{target_guild_id}/members/{user_info["id"]}',
+                    headers=bot_headers
+                )
+                
+                if not member_resp.ok:
+                    logger.error(f'Failed to get member info: {member_resp.json()}')
+                    return redirect(f"{frontend_url}/login?error=Failed to get member info")
+
+                member_info = member_resp.json()
+                if member_info['roles']:
+                    is_verified = True
+                    break
+
+        if not is_verified:
+            logger.error('User is not verified in the target guild')
+            return redirect(f"{frontend_url}/login?error=User is not verified in the target guild")
+
+        # Rest of your existing code...
+        return redirect(f"{frontend_url}/login?success=Authentication successful")
 
     except Exception as e:
         logger.error(f"Discord OAuth error: {str(e)}", exc_info=True)
