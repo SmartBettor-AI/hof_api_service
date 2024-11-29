@@ -56,17 +56,31 @@ class CustomSessionInterface(SessionInterface):
     def __init__(self, redis_client):
         self.redis_client = redis_client
         self.prefix = 'hof_session:'
+        self.cookie_name = 'hof_session'
 
-    def generate_sid(self):
-        return str(uuid.uuid4())
+    def get_cookie_name(self, app):
+        return self.cookie_name
 
-    def get_redis_expiration_time(self, app, session):
-        if session.permanent:
-            return app.permanent_session_lifetime
-        return timedelta(days=1)
+    def get_cookie_domain(self, app):
+        return None
+
+    def get_cookie_path(self, app):
+        return '/'
+
+    def get_cookie_httponly(self, app):
+        return True
+
+    def get_cookie_secure(self, app):
+        return True
+
+    def get_cookie_samesite(self, app):
+        return 'Lax'
+
+    def get_expiration_time(self, app, session):
+        return datetime.now() + timedelta(days=1)
 
     def open_session(self, app, request):
-        sid = request.cookies.get(app.session_cookie_name)
+        sid = request.cookies.get(self.cookie_name)
         if not sid:
             return self.new_session()
 
@@ -76,51 +90,65 @@ class CustomSessionInterface(SessionInterface):
         
         try:
             data = pickle.loads(val)
-            return self.new_session(data)
+            session = self.new_session()
+            session.update(data)
+            session.sid = sid
+            return session
         except:
             return self.new_session()
+
+    def new_session(self, initial_data=None):
+        session = super().new_session()
+        session.sid = str(uuid.uuid4())
+        if initial_data:
+            session.update(initial_data)
+        return session
 
     def save_session(self, app, session, response):
         domain = self.get_cookie_domain(app)
         path = self.get_cookie_path(app)
         
         if not session:
-            if session.modified:
-                self.redis_client.delete(f"{self.prefix}{session.sid}")
-                response.delete_cookie(app.session_cookie_name,
-                                    domain=domain, path=path)
+            self.redis_client.delete(f"{self.prefix}{session.sid}")
+            response.delete_cookie(self.cookie_name,
+                                domain=domain, path=path)
             return
 
-        redis_exp = self.get_redis_expiration_time(app, session)
-        cookie_exp = self.get_expiration_time(app, session)
-        
-        val = pickle.dumps(dict(session))
-        self.redis_client.setex(f"{self.prefix}{session.sid}",
-                              int(redis_exp.total_seconds()),
-                              val)
+        if session.modified:
+            redis_exp = timedelta(days=1)
+            cookie_exp = self.get_expiration_time(app, session)
+            
+            val = pickle.dumps(dict(session))
+            self.redis_client.setex(f"{self.prefix}{session.sid}",
+                                  int(redis_exp.total_seconds()),
+                                  val)
 
-        response.set_cookie(app.session_cookie_name, session.sid,
-                          expires=cookie_exp, httponly=True,
-                          domain=domain, path=path, secure=True,
-                          samesite='Lax')
+            response.set_cookie(self.cookie_name, session.sid,
+                              expires=cookie_exp, 
+                              httponly=self.get_cookie_httponly(app),
+                              domain=domain, 
+                              path=path, 
+                              secure=self.get_cookie_secure(app),
+                              samesite=self.get_cookie_samesite(app))
 
 
 def create_app():
     app = Flask(__name__, template_folder='static/templates', static_folder='static')
+    
+    # Set secret key
+    app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24))
     
     # Redis client
     redis_client = redis.Redis(
         host='localhost',
         port=6379,
         db=0,
-        decode_responses=False  # Important: don't decode responses
+        decode_responses=False
     )
     
-    # Use custom session interface
-    app.session_interface = CustomSessionInterface(redis_client)
-    
-    # Secret key for sessions
-    app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-secret-key-here')
+    # Initialize session interface
+    session_interface = CustomSessionInterface(redis_client)
+    app.session_interface = session_interface
     
     # CORS configuration
     CORS(app, 
@@ -130,8 +158,15 @@ def create_app():
                                       "https://app.homeoffightpicks.com"]}},
          supports_credentials=True)
     
+    # Initialize other extensions
+    jwt = JWTManager(app)
+    oauth = OAuth(app)
+    
     # Rest of your create_app code...
     return app
+
+# Create the app
+app = create_app()
 
 
 app = create_app()
