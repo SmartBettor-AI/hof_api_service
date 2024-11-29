@@ -192,14 +192,28 @@ def discord_authorize():
             # Get token
             token = discord.authorize_access_token()
             logger.info(f"Received token: {token}")
+            
+            # Set up headers for subsequent requests
+            headers = {
+                'Authorization': f"Bearer {token['access_token']}",
+                'Content-Type': 'application/json'
+            }
         except Exception as e:
             logger.error(f"Error getting token: {str(e)}")
             return redirect(f"{frontend_url}/login?error=Token error")
 
         try:
-            # Get user info
-            resp = discord.get('users/@me')
-            user_info = resp.json()
+            # Get user info with proper headers
+            user_resp = requests.get(
+                'https://discord.com/api/users/@me',
+                headers=headers
+            )
+            
+            if not user_resp.ok:
+                logger.error(f"User info request failed: {user_resp.status_code} - {user_resp.text}")
+                return redirect(f"{frontend_url}/login?error=Failed to get user info")
+                
+            user_info = user_resp.json()
             logger.info(f"User info received: {user_info}")
         except Exception as e:
             logger.error(f"Error getting user info: {str(e)}")
