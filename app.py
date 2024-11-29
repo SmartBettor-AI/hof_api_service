@@ -38,6 +38,8 @@ from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from flask_jwt_extended.exceptions import JWTExtendedException
 from authlib.integrations.flask_client import OAuth
 import uuid 
+from flask.sessions import SessionInterface
+import pickle
 
 
 process = psutil.Process(os.getpid())
@@ -50,35 +52,85 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class CustomSessionInterface(SessionInterface):
+    def __init__(self, redis_client):
+        self.redis_client = redis_client
+        self.prefix = 'hof_session:'
+
+    def generate_sid(self):
+        return str(uuid.uuid4())
+
+    def get_redis_expiration_time(self, app, session):
+        if session.permanent:
+            return app.permanent_session_lifetime
+        return timedelta(days=1)
+
+    def open_session(self, app, request):
+        sid = request.cookies.get(app.session_cookie_name)
+        if not sid:
+            return self.new_session()
+
+        val = self.redis_client.get(f"{self.prefix}{sid}")
+        if val is None:
+            return self.new_session()
+        
+        try:
+            data = pickle.loads(val)
+            return self.new_session(data)
+        except:
+            return self.new_session()
+
+    def save_session(self, app, session, response):
+        domain = self.get_cookie_domain(app)
+        path = self.get_cookie_path(app)
+        
+        if not session:
+            if session.modified:
+                self.redis_client.delete(f"{self.prefix}{session.sid}")
+                response.delete_cookie(app.session_cookie_name,
+                                    domain=domain, path=path)
+            return
+
+        redis_exp = self.get_redis_expiration_time(app, session)
+        cookie_exp = self.get_expiration_time(app, session)
+        
+        val = pickle.dumps(dict(session))
+        self.redis_client.setex(f"{self.prefix}{session.sid}",
+                              int(redis_exp.total_seconds()),
+                              val)
+
+        response.set_cookie(app.session_cookie_name, session.sid,
+                          expires=cookie_exp, httponly=True,
+                          domain=domain, path=path, secure=True,
+                          samesite='Lax')
+
 
 def create_app():
     app = Flask(__name__, template_folder='static/templates', static_folder='static')
     
-    # Session configuration
-    app.config['SESSION_TYPE'] = 'redis'
-    app.config['SESSION_PERMANENT'] = False
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
-    app.config['SESSION_KEY_PREFIX'] = 'hof_discord:'
-    app.config['SESSION_REDIS'] = redis.Redis(
+    # Redis client
+    redis_client = redis.Redis(
         host='localhost',
         port=6379,
         db=0,
-        decode_responses=True
+        decode_responses=False  # Important: don't decode responses
     )
     
-    Session(app)
+    # Use custom session interface
+    app.session_interface = CustomSessionInterface(redis_client)
     
-    CORS(app, resources={r"/*": {"origins": ["https://homeoffightpicks.com", "http://localhost:3000","http://localhost:3001", "https://app.homeoffightpicks.com"]}}, supports_credentials=True)
-
-    Compress(app)
-    # TODO: Put this key in the secret file
-    app.secret_key = 'to_the_moon'
-    app.db_manager = DBManager()
-    app.db = database(app.db_manager)
-
-    from functionality.routes.api import api
-    app.register_blueprint(api)
-
+    # Secret key for sessions
+    app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-secret-key-here')
+    
+    # CORS configuration
+    CORS(app, 
+         resources={r"/*": {"origins": ["https://homeoffightpicks.com", 
+                                      "http://localhost:3000",
+                                      "http://localhost:3001", 
+                                      "https://app.homeoffightpicks.com"]}},
+         supports_credentials=True)
+    
+    # Rest of your create_app code...
     return app
 
 
@@ -166,43 +218,42 @@ def retry_on_session_error(max_retries=3, delay=1):
 
 @app.route('/api/auth/discord')
 def discord_login():
-    """
-    Redirect user to Discord OAuth authorization page
-    """
-    # Generate and store state
-    state = str(uuid.uuid4())
-    session['oauth_state'] = state
-    
-    redirect_uri = url_for('discord_authorize', _external=True)
-    return discord.authorize_redirect(redirect_uri, state=state)
-
+    try:
+        state = str(uuid.uuid4())
+        session.clear()
+        session['oauth_state'] = state
+        
+        logger.info(f"Starting Discord login with state: {state}")
+        
+        redirect_uri = url_for('discord_authorize', _external=True)
+        return discord.authorize_redirect(redirect_uri, state=state)
+    except Exception as e:
+        logger.error(f"Error in discord_login: {str(e)}")
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+        return redirect(f"{frontend_url}/login?error=Login failed")
 
 @app.route('/api/auth/discord/callback')
 def discord_authorize():
-    """
-    Handle Discord OAuth callback
-    """
     try:
         logger.info('Starting Discord callback processing')
         frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
         
-        # Verify state
         state = request.args.get('state')
         stored_state = session.get('oauth_state')
         
+        logger.info(f"State check - Received: {state}, Stored: {stored_state}")
+        
         if not state or not stored_state or state != stored_state:
-            logger.error(f'State mismatch. Received: {state}, Stored: {stored_state}')
-            return redirect(f"{frontend_url}/login?error=Authentication failed")
+            logger.error(f"State mismatch - Received: {state}, Stored: {stored_state}")
+            return redirect(f"{frontend_url}/login?error=Session expired")
             
         # Clear the state
         session.pop('oauth_state', None)
         
         try:
-            # Get token
             token = discord.authorize_access_token()
             logger.info(f"Received token: {token}")
             
-            # Set up headers for subsequent requests
             headers = {
                 'Authorization': f"Bearer {token['access_token']}",
                 'Content-Type': 'application/json'
