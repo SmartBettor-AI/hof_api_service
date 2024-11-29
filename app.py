@@ -242,6 +242,7 @@ def discord_authorize():
             frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
             logger.info(f'Redirecting to {frontend_url}/market_view?token={access_token}')
             return redirect(f"{frontend_url}/market_view?token={access_token}")
+        
         else:
             logger.info('User is not verified')
             frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
