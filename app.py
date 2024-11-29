@@ -205,7 +205,7 @@ def discord_authorize():
         try:
             # Get user info with proper headers
             user_resp = requests.get(
-                'https://discord.com/api/users/@me',
+                'https://discord.com/api/v10/users/@me',
                 headers=headers
             )
             
@@ -221,7 +221,13 @@ def discord_authorize():
 
         try:
             # Get guilds with proper headers
-            guilds_resp = discord.get('users/@me/guilds', token=token)
+            guilds_resp = requests.get(
+                'https://discord.com/api/v10/users/@me/guilds',
+                headers=headers
+            )
+            
+            logger.info(f"Guilds request headers: {headers}")
+            logger.info(f"Guilds response status: {guilds_resp.status_code}")
             
             if not guilds_resp.ok:
                 logger.error(f"Guilds request failed: {guilds_resp.status_code} - {guilds_resp.text}")
