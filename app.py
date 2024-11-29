@@ -188,55 +188,92 @@ def discord_authorize():
         # Clear the state
         session.pop('oauth_state', None)
         
-        # Get token
-        token = discord.authorize_access_token()
-        if not token:
-            logger.error('No token received from Discord')
-            return redirect(f"{frontend_url}/login?error=No token received")
+        try:
+            # Get token
+            token = discord.authorize_access_token()
+            logger.info(f"Received token: {token}")
+        except Exception as e:
+            logger.error(f"Error getting token: {str(e)}")
+            return redirect(f"{frontend_url}/login?error=Token error")
 
-        # Get user info
-        resp = discord.get('users/@me')
-        user_info = resp.json()
-        if not user_info:
-            logger.error('No user info received')
-            return redirect(f"{frontend_url}/login?error=No user info received")
+        try:
+            # Get user info
+            resp = discord.get('users/@me')
+            user_info = resp.json()
+            logger.info(f"User info received: {user_info}")
+        except Exception as e:
+            logger.error(f"Error getting user info: {str(e)}")
+            return redirect(f"{frontend_url}/login?error=User info error")
 
-        # Get guilds
-        guilds_resp = discord.get('users/@me/guilds')
-        guilds = guilds_resp.json()
+        try:
+            # Get guilds with proper headers
+            guilds_resp = discord.get('users/@me/guilds', token=token)
+            
+            if not guilds_resp.ok:
+                logger.error(f"Guilds request failed: {guilds_resp.status_code} - {guilds_resp.text}")
+                return redirect(f"{frontend_url}/login?error=Failed to get guilds")
+                
+            guilds = guilds_resp.json()
+            logger.info(f"Guilds received: {guilds}")
+            
+            if not isinstance(guilds, list):
+                logger.error(f"Unexpected guilds format. Received: {type(guilds)}")
+                return redirect(f"{frontend_url}/login?error=Invalid guilds format")
+        except Exception as e:
+            logger.error(f"Error getting guilds: {str(e)}")
+            return redirect(f"{frontend_url}/login?error=Guilds error")
 
         # Bot token for member verification
         bot_token = os.environ.get('DISCORD_BOT_TOKEN')
         target_guild_id = os.environ.get('DISCORD_GUILD_ID')
         target_role_id = os.environ.get('DISCORD_ROLE_ID')
         
+        if not all([bot_token, target_guild_id, target_role_id]):
+            logger.error("Missing required environment variables")
+            return redirect(f"{frontend_url}/login?error=Server configuration error")
+
         bot_headers = {
             'Authorization': f'Bot {bot_token}'
         }
 
         is_verified = False
         for guild in guilds:
-            if guild['id'] == target_guild_id:
-                member_resp = requests.get(
-                    f'https://discord.com/api/guilds/{target_guild_id}/members/{user_info["id"]}',
-                    headers=bot_headers
-                )
-                
-                if not member_resp.ok:
-                    logger.error(f'Failed to get member info: {member_resp.json()}')
-                    return redirect(f"{frontend_url}/login?error=Failed to get member info")
+            try:
+                if str(guild.get('id')) == str(target_guild_id):
+                    member_resp = requests.get(
+                        f'https://discord.com/api/guilds/{target_guild_id}/members/{user_info["id"]}',
+                        headers=bot_headers
+                    )
+                    
+                    if not member_resp.ok:
+                        logger.error(f'Failed to get member info: {member_resp.status_code} {member_resp.text}')
+                        continue
 
-                member_info = member_resp.json()
-                if member_info['roles']:
-                    is_verified = True
-                    break
+                    member = member_resp.json()
+                    if target_role_id in member.get('roles', []):
+                        is_verified = True
+                        break
+            except Exception as e:
+                logger.error(f"Error processing guild {guild}: {str(e)}")
+                continue
 
-        if not is_verified:
-            logger.error('User is not verified in the target guild')
-            return redirect(f"{frontend_url}/login?error=User is not verified in the target guild")
-
-        # Rest of your existing code...
-        return redirect(f"{frontend_url}/login?success=Authentication successful")
+        if is_verified:
+            logger.info('User is verified')
+            access_token = create_access_token(
+                identity={
+                    'discord_id': user_info['id'],
+                    'username': user_info['username'],
+                    'email': user_info.get('email'),
+                    'is_verified': True
+                },
+                expires_delta=timedelta(days=7)
+            )
+            logger.info(f'Created access token: {access_token}')
+            return redirect(f"{frontend_url}/market_view?token={access_token}")
+        else:
+            logger.info('User is not verified')
+            error_message = 'You do not have access to the Market View page. Sign in or register with Winible. Make sure you are in the Discord server.'
+            return redirect(f"{frontend_url}/login?error={error_message}")
 
     except Exception as e:
         logger.error(f"Discord OAuth error: {str(e)}", exc_info=True)
