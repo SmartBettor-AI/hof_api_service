@@ -1,5 +1,5 @@
+
 from flask import Flask, request, session, redirect, jsonify, url_for, render_template, jsonify, abort
-from flask_session import Session
 from flask_socketio import SocketIO
 from functionality.database import database
 import requests
@@ -38,8 +38,6 @@ from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from flask_jwt_extended.exceptions import JWTExtendedException
 from authlib.integrations.flask_client import OAuth
 import uuid 
-from flask.sessions import SessionInterface
-import pickle
 
 
 process = psutil.Process(os.getpid())
@@ -52,121 +50,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class CustomSessionInterface(SessionInterface):
-    def __init__(self, redis_client):
-        self.redis_client = redis_client
-        self.prefix = 'hof_session:'
-        self.cookie_name = 'hof_session'
-
-    def get_cookie_name(self, app):
-        return self.cookie_name
-
-    def get_cookie_domain(self, app):
-        return None
-
-    def get_cookie_path(self, app):
-        return '/'
-
-    def get_cookie_httponly(self, app):
-        return True
-
-    def get_cookie_secure(self, app):
-        return True
-
-    def get_cookie_samesite(self, app):
-        return 'Lax'
-
-    def get_expiration_time(self, app, session):
-        return datetime.now() + timedelta(days=1)
-
-    def open_session(self, app, request):
-        sid = request.cookies.get(self.cookie_name)
-        if not sid:
-            return self.new_session()
-
-        val = self.redis_client.get(f"{self.prefix}{sid}")
-        if val is None:
-            return self.new_session()
-        
-        try:
-            data = pickle.loads(val)
-            session = self.new_session()
-            session.update(data)
-            session.sid = sid
-            return session
-        except:
-            return self.new_session()
-
-    def new_session(self, initial_data=None):
-        session = super().new_session()
-        session.sid = str(uuid.uuid4())
-        if initial_data:
-            session.update(initial_data)
-        return session
-
-    def save_session(self, app, session, response):
-        domain = self.get_cookie_domain(app)
-        path = self.get_cookie_path(app)
-        
-        if not session:
-            self.redis_client.delete(f"{self.prefix}{session.sid}")
-            response.delete_cookie(self.cookie_name,
-                                domain=domain, path=path)
-            return
-
-        if session.modified:
-            redis_exp = timedelta(days=1)
-            cookie_exp = self.get_expiration_time(app, session)
-            
-            val = pickle.dumps(dict(session))
-            self.redis_client.setex(f"{self.prefix}{session.sid}",
-                                  int(redis_exp.total_seconds()),
-                                  val)
-
-            response.set_cookie(self.cookie_name, session.sid,
-                              expires=cookie_exp, 
-                              httponly=self.get_cookie_httponly(app),
-                              domain=domain, 
-                              path=path, 
-                              secure=self.get_cookie_secure(app),
-                              samesite=self.get_cookie_samesite(app))
-
 
 def create_app():
     app = Flask(__name__, template_folder='static/templates', static_folder='static')
-    
-    # Set secret key
-    app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24))
-    
-    # Redis client
-    redis_client = redis.Redis(
-        host='localhost',
-        port=6379,
-        db=0,
-        decode_responses=False
-    )
-    
-    # Initialize session interface
-    session_interface = CustomSessionInterface(redis_client)
-    app.session_interface = session_interface
-    
-    # CORS configuration
-    CORS(app, 
-         resources={r"/*": {"origins": ["https://homeoffightpicks.com", 
-                                      "http://localhost:3000",
-                                      "http://localhost:3001", 
-                                      "https://app.homeoffightpicks.com"]}},
-         supports_credentials=True)
-    
-    # Initialize other extensions
-    jwt = JWTManager(app)
-    oauth = OAuth(app)
-    
-    # Rest of your create_app code...
-    return app
+    CORS(app, resources={r"/*": {"origins": ["https://homeoffightpicks.com", "http://localhost:3000","http://localhost:3001", "https://app.homeoffightpicks.com"]}}, supports_credentials=True)
 
-# Create the app
-app = create_app()
+    Compress(app)
+    # TODO: Put this key in the secret file
+    app.secret_key = 'to_the_moon'
+    app.db_manager = DBManager()
+    app.db = database(app.db_manager)
+
+    from functionality.routes.api import api
+    app.register_blueprint(api)
+
+    return app
 
 
 app = create_app()
@@ -188,12 +86,7 @@ discord = oauth.register(
     },
 )
 
-# Add session configuration
-app.config['SESSION_COOKIE_NAME'] = 'discord_oauth_session'
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
+
 
 app.config['REACT_COMPONENT_DIRECTORY'] = os.path.join(app.root_path, 'react_frontend')
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
@@ -253,124 +146,86 @@ def retry_on_session_error(max_retries=3, delay=1):
 
 @app.route('/api/auth/discord')
 def discord_login():
-    try:
-        state = str(uuid.uuid4())
-        session.clear()
-        session['oauth_state'] = state
-        
-        logger.info(f"Starting Discord login with state: {state}")
-        
-        redirect_uri = url_for('discord_authorize', _external=True)
-        return discord.authorize_redirect(redirect_uri, state=state)
-    except Exception as e:
-        logger.error(f"Error in discord_login: {str(e)}")
-        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
-        return redirect(f"{frontend_url}/login?error=Login failed")
+    """
+    Redirect user to Discord OAuth authorization page
+    """
+    redirect_uri = url_for('discord_authorize', _external=True)
+    return discord.authorize_redirect(redirect_uri)
+
 
 @app.route('/api/auth/discord/callback')
 def discord_authorize():
+    """
+    Handle Discord OAuth callback
+    """
     try:
         logger.info('Starting Discord callback processing')
-        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+        logger.info(f'Received code: {request.args.get("code")}')
         
-        state = request.args.get('state')
-        stored_state = session.get('oauth_state')
+        # Exchange code for token with explicit parameters
+        token = discord.authorize_access_token()
+        logger.info(f'Token response: {token}')  # Be careful not to log this in production
         
-        logger.info(f"State check - Received: {state}, Stored: {stored_state}")
-        
-        if not state or not stored_state or state != stored_state:
-            logger.error(f"State mismatch - Received: {state}, Stored: {stored_state}")
-            return redirect(f"{frontend_url}/login?error=Session expired")
-            
-        # Clear the state
-        session.pop('oauth_state', None)
-        
-        try:
-            token = discord.authorize_access_token()
-            logger.info(f"Received token: {token}")
-            
-            headers = {
-                'Authorization': f"Bearer {token['access_token']}",
-                'Content-Type': 'application/json'
-            }
-        except Exception as e:
-            logger.error(f"Error getting token: {str(e)}")
-            return redirect(f"{frontend_url}/login?error=Token error")
+        if not token:
+            logger.error('No token received from Discord')
+            return jsonify({"error": "No token received"}), 401
 
-        try:
-            # Get user info with proper headers
-            user_resp = requests.get(
-                'https://discord.com/api/v10/users/@me',
-                headers=headers
-            )
-            
-            if not user_resp.ok:
-                logger.error(f"User info request failed: {user_resp.status_code} - {user_resp.text}")
-                return redirect(f"{frontend_url}/login?error=Failed to get user info")
-                
-            user_info = user_resp.json()
-            logger.info(f"User info received: {user_info}")
-        except Exception as e:
-            logger.error(f"Error getting user info: {str(e)}")
-            return redirect(f"{frontend_url}/login?error=User info error")
+        # Make sure we have an access token before proceeding
+        access_token = token.get('access_token')
+        if not access_token:
+            logger.error('No access_token in token response')
+            return jsonify({"error": "No access token"}), 401
 
-        try:
-            # Get guilds with proper headers
-            guilds_resp = requests.get(
-                'https://discord.com/api/v10/users/@me/guilds',
-                headers=headers
-            )
-            
-            logger.info(f"Guilds request headers: {headers}")
-            logger.info(f"Guilds response status: {guilds_resp.status_code}")
-            
-            if not guilds_resp.ok:
-                logger.error(f"Guilds request failed: {guilds_resp.status_code} - {guilds_resp.text}")
-                return redirect(f"{frontend_url}/login?error=Failed to get guilds")
-                
-            guilds = guilds_resp.json()
-            logger.info(f"Guilds received: {guilds}")
-            
-            if not isinstance(guilds, list):
-                logger.error(f"Unexpected guilds format. Received: {type(guilds)}")
-                return redirect(f"{frontend_url}/login?error=Invalid guilds format")
-        except Exception as e:
-            logger.error(f"Error getting guilds: {str(e)}")
-            return redirect(f"{frontend_url}/login?error=Guilds error")
+        # Use the token to get user info
+        headers = {'Authorization': f'Bearer {access_token}'}
+        user_resp = requests.get('https://discord.com/api/users/@me', headers=headers)
+        
+        if not user_resp.ok:
+            logger.error(f'Failed to get user info: {user_resp.status_code} {user_resp.text}')
+            return jsonify({"error": "Failed to get user info"}), 401
 
-        # Bot token for member verification
-        bot_token = os.environ.get('DISCORD_BOT_TOKEN')
+        user_info = user_resp.json()
+        logger.info(f'Successfully got user info: {user_info}')
+
+        # Get guilds
+        guilds_resp = requests.get('https://discord.com/api/users/@me/guilds', headers=headers)
+        
+        if not guilds_resp.ok:
+            logger.error(f'Failed to get guilds: {guilds_resp.status_code} {guilds_resp.text}')
+            return jsonify({"error": "Failed to get guilds"}), 401
+
+        guilds = guilds_resp.json()
+        
+        # Check guild membership and roles
         target_guild_id = os.environ.get('DISCORD_GUILD_ID')
         target_role_id = os.environ.get('DISCORD_ROLE_ID')
         
-        if not all([bot_token, target_guild_id, target_role_id]):
-            logger.error("Missing required environment variables")
-            return redirect(f"{frontend_url}/login?error=Server configuration error")
+        logger.info(f'Checking for guild {target_guild_id} and role {target_role_id}')
+        
+        bot_token = os.environ.get('DISCORD_BOT_TOKEN')
+        if not bot_token:
+            logger.error('Missing DISCORD_BOT_TOKEN environment variable')
+            return jsonify({"error": "Server configuration error"}), 500
 
-        bot_headers = {
-            'Authorization': f'Bot {bot_token}'
-        }
-
+        # Use bot token for guild member request
+        bot_headers = {'Authorization': f'Bot {bot_token}'}
+        
         is_verified = False
         for guild in guilds:
-            try:
-                if str(guild.get('id')) == str(target_guild_id):
-                    member_resp = requests.get(
-                        f'https://discord.com/api/guilds/{target_guild_id}/members/{user_info["id"]}',
-                        headers=bot_headers
-                    )
-                    
-                    if not member_resp.ok:
-                        logger.error(f'Failed to get member info: {member_resp.status_code} {member_resp.text}')
-                        continue
+            if guild['id'] == target_guild_id:
+                member_resp = requests.get(
+                    f'https://discord.com/api/guilds/{target_guild_id}/members/{user_info["id"]}',
+                    headers=bot_headers  # Use bot headers here
+                )
+                
+                if not member_resp.ok:
+                    logger.error(f'Failed to get member info: {member_resp.status_code} {member_resp.text}')
+                    continue
 
-                    member = member_resp.json()
-                    if target_role_id in member.get('roles', []):
-                        is_verified = True
-                        break
-            except Exception as e:
-                logger.error(f"Error processing guild {guild}: {str(e)}")
-                continue
+                member = member_resp.json()
+                if target_role_id in member.get('roles', []):
+                    is_verified = True
+                    break
 
         if is_verified:
             logger.info('User is verified')
@@ -383,18 +238,24 @@ def discord_authorize():
                 },
                 expires_delta=timedelta(days=7)
             )
-            logger.info(f'Created access token: {access_token}')
+            logger.info(access_token)
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+            logger.info(f'Redirecting to {frontend_url}/market_view?token={access_token}')
             return redirect(f"{frontend_url}/market_view?token={access_token}")
         else:
             logger.info('User is not verified')
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
             error_message = 'You do not have access to the Market View page. Sign in or register with Winible. Make sure you are in the Discord server.'
             return redirect(f"{frontend_url}/login?error={error_message}")
 
     except Exception as e:
         logger.error(f"Discord OAuth error: {str(e)}", exc_info=True)
-        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
-        return redirect(f"{frontend_url}/login?error=Authentication failed")
-
+        return jsonify({
+            "error": "Authentication failed",
+            "details": str(e),
+            "type": type(e).__name__
+        }), 401
+   
 
 @app.route('/logout')
 def logout():
