@@ -922,8 +922,8 @@ class fightOddsIOScraper(MMAScraper):
                 if 'fantasy' in market:
                     return 'Fantasy Score'
                 
-                if 'significant' in market:
-                    return 'Significant Strikes'
+                if 'strikes' in market:
+                    return 'Strikes'
                 
                 if 'takedowns' in market:
                     return 'Takedowns'
