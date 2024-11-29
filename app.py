@@ -56,7 +56,16 @@ def create_app():
     
     # Session configuration
     app.config['SESSION_TYPE'] = 'redis'
-    app.config['SESSION_REDIS'] = redis_client
+    app.config['SESSION_PERMANENT'] = False
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
+    app.config['SESSION_KEY_PREFIX'] = 'hof_discord:'
+    app.config['SESSION_REDIS'] = redis.Redis(
+        host='localhost',
+        port=6379,
+        db=0,
+        decode_responses=True
+    )
+    
     Session(app)
     
     CORS(app, resources={r"/*": {"origins": ["https://homeoffightpicks.com", "http://localhost:3000","http://localhost:3001", "https://app.homeoffightpicks.com"]}}, supports_credentials=True)
