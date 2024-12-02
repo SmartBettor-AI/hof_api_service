@@ -1194,7 +1194,7 @@ class fightOddsIOScraper(MMAScraper):
             bestFightOdds = bestFightOdds.drop(columns=['Unibet', 'BetWay', 'Bet365'])
             
         except Exception as e:
-            print(f"Error scraping best fight odds: {e}")
+            logger.error(f"Error scraping best fight odds: {e}")
 
         # Check if bestFightOdds was successfully created
         if (
@@ -1207,7 +1207,7 @@ class fightOddsIOScraper(MMAScraper):
             ):
             merged_df = total_df.merge(bestFightOdds, on=['market', 'game_id'], how='left', suffixes=('', '_bestFightOdds'))
         else:
-            print("bestFightOdds is empty or was not created. Skipping merge operation.")
+            logger.info("bestFightOdds is empty or was not created. Skipping merge operation.")
             merged_df = total_df.copy()
 
 
