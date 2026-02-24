@@ -383,6 +383,7 @@ class Formatter:
         self.df = self.df[self.df['outcome'].notna()]
         self.df = self.df[self.df['game_id'].notna()]
         self.df = self.df[self.df['market_key'].notna()]
+        self.df = self.df[self.df['market_key'] != '']
         self.df = self.df.drop(columns=['odds'], errors='ignore')
         self.df['cached_links'] = ''
         return self.df
