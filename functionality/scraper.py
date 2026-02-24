@@ -12,6 +12,7 @@ from db_manager import DBManager
 from models import LoginInfo, MMAEvents, MMAOdds, MMAGames
 from sqlalchemy import create_engine, select, insert, MetaData, Table, and_
 from sqlalchemy.orm import aliased
+from formatter import Formatter
 
 import pandas as pd
 import jsonpickle
@@ -347,13 +348,6 @@ class BestFightOddsScraper(MMAScraper):
         
         return total_df
 
-                
-
-
-
-
-
-
     def replace_fraction(self,symbol):
         """Replace fraction symbol ½ with its decimal equivalent."""
         return symbol.replace("½", ".5")
@@ -365,6 +359,7 @@ class BestFightOddsScraper(MMAScraper):
         # Extract all numbers with decimals
         result = re.sub(r'(\d+)\.(5)', r'\1.5', text_decimal)
         return result
+    
     def get_or_create_ids(self, my_game_id, my_event_id):
         session = self.db_manager.create_session()
         
@@ -516,10 +511,6 @@ class fightOddsIOScraper(MMAScraper):
                 if 'odds/' in full_url:
                     self.get_odds_per_page(full_url)
                     
-
-
-
-
     def get_odds_per_page(self, url):
         try:
             driver = webdriver.Chrome(service=Service(self.driver_path),options=self.options)
@@ -676,11 +667,6 @@ class fightOddsIOScraper(MMAScraper):
             redis_client.set(cache_key, jsonpickle.encode(game_data), ex=1800)
         logger.info('wrote all caches')
 
-
-
-        
-
-    
     def get_unique_game_ids(self):
         with self.db_manager.create_session() as session:
             # SQLAlchemy query to get all unique game_ids
@@ -813,7 +799,7 @@ class fightOddsIOScraper(MMAScraper):
                
             )
             .where(MMAOdds.id < other_side.id) 
-)
+        )
 
         # Execute the optimized query
         rows = session.execute(stmt).all()
@@ -910,7 +896,6 @@ class fightOddsIOScraper(MMAScraper):
       finally:
         session.close()
 
-    # 
     def categorize_markets(self, df):
             wins_in_round_pattern = re.compile(r'wins in round \d+$')
             def categorize(row):
@@ -998,7 +983,6 @@ class fightOddsIOScraper(MMAScraper):
             df['dropdown'] = df.apply(categorize, axis=1)
             return df
     
-
     def mark_main_totals(self, df):
 
         desired_columns = [
@@ -1072,7 +1056,6 @@ class fightOddsIOScraper(MMAScraper):
             if col in df.columns:  # Check if the column exists before attempting to drop it
                 df = df.drop(columns=col)
         return df
-
 
     def format_odds(self):
         files = os.listdir(f"{os.getcwd()}/mma_raw_odds")
@@ -1333,7 +1316,7 @@ class fightOddsIOScraper(MMAScraper):
         # Step 1: Identify game_ids where the 'market' is null or an empty string
         invalid_game_ids = merged_df.loc[merged_df['market'].isnull() | (merged_df['market'] == ''), 'game_id'].unique()
 
-# Step 2: Remove rows where the 'game_id' is in the list of invalid game_ids
+        # Step 2: Remove rows where the 'game_id' is in the list of invalid game_ids
         merged_df = merged_df[~merged_df['game_id'].isin(invalid_game_ids)]
 
 
@@ -1355,13 +1338,23 @@ class fightOddsIOScraper(MMAScraper):
 
         merged_df.to_csv('final_output.csv', index=False)
 
-
-
-
-
-
-        
         exclude_columns.append('game_id')
+
+        formatter = Formatter(merged_df)
+
+        # Apply formatter methods
+        formatter.find_odds_api_game_id()
+
+        formatter.format_sport_title()
+        formatter.format_market_key()
+        formatter.format_outcome_description_name_point()
+        formatter.format_merge_outcome_wagers()
+        formatter.format_market_display()
+        formatter.format_wager_display()
+        formatter.format_snapshot_time()
+        formatter.format_cleanup()
+
+        formatter.df.to_csv('final_output_formatted.csv', index=False)
 
 
         with self.db_manager.get_engine().begin() as conn:
@@ -1390,11 +1383,6 @@ class fightOddsIOScraper(MMAScraper):
                 # Insert the row into the mma_odds table
                 stmt = insert(self.mma_odds).values(**row_dict)
                 conn.execute(stmt)
-
-
-
-
-
 
     def market_key_map(self, row, first_totals_over_under):
         if pd.isna(row['class_name']) or row['class_name'].strip() == '':
@@ -1550,8 +1538,6 @@ class fightOddsIOScraper(MMAScraper):
         else:
             # Remove date information if there are no colons
             return re.sub(pattern, '', name).strip()
-        
-    
 
     def replace_fraction(self,symbol):
         """Replace fraction symbol ½ with its decimal equivalent."""
