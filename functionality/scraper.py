@@ -1,13 +1,7 @@
 import requests
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, ElementClickInterceptedException
+from playwright.sync_api import sync_playwright
 
 from bs4 import BeautifulSoup
-from selenium.webdriver.chrome.options import Options
 from db_manager import DBManager
 from models import LoginInfo, MMAEvents, MMAOdds, MMAGames
 from sqlalchemy import create_engine, select, insert, MetaData, Table, and_
@@ -37,46 +31,12 @@ redis_client = redis.Redis(host='localhost', port=6379, db=0)
 class MMAScraper:
 
     def __init__(self, url):
-        self.options = Options()
-        # configure the profile to store cookies and cache
         self.db_manager = DBManager()
         metadata = MetaData(bind=self.db_manager.get_engine())
         self.mma_games = Table('mma_games', metadata, autoload_with=self.db_manager.get_engine())
         self.mma_odds = Table('mma_odds', metadata, autoload_with=self.db_manager.get_engine())
         self.mma_events = Table('mma_events', metadata, autoload_with=self.db_manager.get_engine())
-
-        self.options.add_argument("--use-fake-ui-for-media-stream")
-        self.options.add_argument("--use-fake-device-for-media-stream")
-        self.options.add_argument("--disable-extensions")
-        self.options.add_argument("--headless")
-        self.options.add_argument("--disable-dev-shm-usage")
-        self.options.add_argument("--no-sandbox")
-        self.options.add_argument("--disable-popup-blocking")
-        self.options.add_argument("--disable-gpu")  # Disable GPU for headless mode
-        self.options.add_argument("start-maximized")
-        self.options.add_argument("disable-infobars")
-        self.options.add_argument("--disable-web-security")
-        self.options.add_argument("--disable-notifications")
-        self.options.add_argument("--enable-automation")
-        self.options.add_argument("--disable-background-timer-throttling")
-        self.options.add_argument("--disable-backgrounding-occluded-windows")
-        self.options.add_argument("--disable-breakpad")
-        self.options.add_argument("--disable-client-side-phishing-detection")
-        self.options.add_argument("--disable-default-apps")
-        self.options.add_argument("--disable-hang-monitor")
-        self.options.add_argument("--disable-popup-blocking")
-        self.options.add_argument("--disable-prompt-on-repost")
-        self.options.add_argument("--disable-sync")
-        self.options.add_argument("--disable-translate")
-        self.options.add_argument("--metrics-recording-only")
-        self.options.add_argument("--safebrowsing-disable-auto-update")
-        self.options.add_argument("--enable-automation")
-        self.options.add_argument("--password-store=basic")
-        self.options.add_argument("--use-mock-keychain")
         self.url = url
-        self.driver_path = os.environ.get("chromedriver_path")
-        # self.driver = webdriver.Chrome(service=Service(self.driver_path),options=options)  # Initialize the driver here
-        # self.soup = self._get_soup()
 
     def _get_soup(self):
 
@@ -512,40 +472,34 @@ class fightOddsIOScraper(MMAScraper):
                     self.get_odds_per_page(full_url)
                     
     def get_odds_per_page(self, url):
+        table = None
         try:
-            driver = webdriver.Chrome(service=Service(self.driver_path),options=self.options)
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+                )
+                page = browser.new_page()
+                page.goto(url)
 
-            driver.get(url)
+                try:
+                    buttons = page.locator(".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
+                    count = buttons.count()
+                    if count > 0:
+                        buttons.first.wait_for(state="visible", timeout=10000)
+                        for i in range(count):
+                            buttons.nth(i).click()
+                            time.sleep(1)
 
-            try:
-                buttons = driver.find_elements(By.CSS_SELECTOR, ".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
-            
-                if buttons:
-                    # Wait until the buttons are visible and clickable
-                    WebDriverWait(driver, 10).until(
-                        EC.visibility_of_all_elements_located((By.CSS_SELECTOR, ".MuiButtonBase-root.MuiButton-root.MuiButton-contained"))
-                    )
+                    html_content = page.content()
+                    soup = BeautifulSoup(html_content, "html.parser")
+                    table = soup.find("table")
 
-                    # Find all buttons and click them
-                    buttons = driver.find_elements(By.CSS_SELECTOR, ".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
-                    for button in buttons:
-                        button.click()
-                        time.sleep(1)  # Optional: add a small delay between clicks
+                except Exception as e:
+                    print(f"An error occurred: {e}")
 
-                # Get the updated page source after clicking the buttons
-                html_content = driver.page_source
-
-                # Close the WebDriver
-                driver.quit()
-
-                soup = BeautifulSoup(html_content, "html.parser")
-
-                # Now you can find the table or any other elements you're interested in
-                table = soup.find("table")
-
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                driver.quit()
+            if table is None:
+                return
 
 
             # Extract the class names of each <tr> and store them
@@ -1334,7 +1288,6 @@ class fightOddsIOScraper(MMAScraper):
         merged_df = self.categorize_markets(merged_df)
         merged_df.to_csv('after_categorize.csv', index=False)
         merged_df = self.categorize_dropdown(merged_df)
-
 
         merged_df.to_csv('final_output.csv', index=False)
 
