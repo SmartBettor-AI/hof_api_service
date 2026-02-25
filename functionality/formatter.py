@@ -384,6 +384,10 @@ class Formatter:
         self.df = self.df[self.df['game_id'].notna()]
         self.df = self.df[self.df['market_key'].notna()]
         self.df = self.df[self.df['market_key'] != '']
+        # Drop totals/alternate_totals rows with null outcome_name
+        totals_mask = self.df['market_key'].isin(['totals', 'alternate_totals'])
+        null_outcome = self.df['outcome_name'].isna()
+        self.df = self.df[~(totals_mask & null_outcome)]
         self.df = self.df.drop(columns=['odds'], errors='ignore')
         self.df['cached_links'] = ''
         return self.df
