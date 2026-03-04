@@ -1237,6 +1237,11 @@ class fightOddsIOScraper(MMAScraper):
             return
 
         ###Convert odds
+        # When merged_df is empty, apply(axis=1) returns a DataFrame; assigning to one column then raises. Guard all such assignments.
+        def _apply_series(df, func):
+            res = df.apply(func, axis=1)
+            return res if isinstance(res, pd.Series) else (res.iloc[:, 0] if res.shape[1] else pd.Series(dtype=object))
+
         exclude_columns = ['class_name', 'matchup', 'home_team', 'away_team', 'market', 'game_date', 'game_id', 'fight_name', 'event_id', 'pulled_id']
         for col in merged_df.columns:
             if col not in exclude_columns:
@@ -1251,6 +1256,10 @@ class fightOddsIOScraper(MMAScraper):
         # Drop rows where all values in odds_cols are NaN
         merged_df = merged_df.dropna(subset=odds_cols, how='all')
 
+        if merged_df.empty:
+            print("Error: No rows left after dropna (all-NA odds); skipping format_odds.")
+            return
+
     
         # Calculate the maximum odds for each row   
         merged_df['highest_bettable_odds'] = merged_df[odds_cols].max(axis=1)
@@ -1264,14 +1273,14 @@ class fightOddsIOScraper(MMAScraper):
         exclude_columns.append('average_bettable_odds')
 
 
-        merged_df['sportsbooks_used'] = merged_df.apply(lambda row: self.find_matching_columns(row, odds_cols), axis=1)
+        merged_df['sportsbooks_used'] = _apply_series(merged_df, lambda row: self.find_matching_columns(row, odds_cols))
         
         exclude_columns.append('sportsbooks_used')
         merged_df.to_csv('before_market_key.csv', index=False)
 
         first_total_flag = [False, False]
 
-        merged_df['market_key'] = merged_df.apply(lambda row: self.market_key_map(row, first_total_flag), axis=1)
+        merged_df['market_key'] = _apply_series(merged_df, lambda row: self.market_key_map(row, first_total_flag))
 
 
         merged_df = self.get_favored_team(merged_df)
@@ -1288,7 +1297,7 @@ class fightOddsIOScraper(MMAScraper):
         
         merged_df = merged_df.replace({np.nan: None})
   
-        merged_df['odds'] = merged_df.apply(lambda row: json.dumps({col: row[col] for col in odds_cols}), axis=1)
+        merged_df['odds'] = _apply_series(merged_df, lambda row: json.dumps({col: row[col] for col in odds_cols}))
   
 
         merged_df.to_csv('before_categorize.csv', index=False)
