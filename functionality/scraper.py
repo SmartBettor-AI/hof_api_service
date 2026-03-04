@@ -1234,12 +1234,7 @@ class fightOddsIOScraper(MMAScraper):
             merged_df.to_csv('final_merged_output.csv', index=False)
         else:
             print("Error: No data in final merged DataFrame")
-
-
-
-
-
-
+            return
 
         ###Convert odds
         exclude_columns = ['class_name', 'matchup', 'home_team', 'away_team', 'market', 'game_date', 'game_id', 'fight_name', 'event_id', 'pulled_id']
