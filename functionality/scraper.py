@@ -1,6 +1,6 @@
 import requests
 from playwright.sync_api import sync_playwright
-
+import traceback
 from bs4 import BeautifulSoup
 from db_manager import DBManager
 from models import LoginInfo, MMAEvents, MMAOdds, MMAGames
