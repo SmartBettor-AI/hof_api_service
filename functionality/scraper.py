@@ -1029,7 +1029,9 @@ class fightOddsIOScraper(MMAScraper):
                     print(f'Formatting {file}...')
                     try:
                         file_name = (file_prefix+file).strip()
+                        print(f'[DEBUG] file_name={file_name}')
                         this_df = pd.read_csv(file_name)
+                        print(f'[DEBUG] read_csv ok, shape={this_df.shape}, cols={list(this_df.columns)}')
                         try:
                             os.remove(file_name)
                             print(f'Deleted {file_name}')
@@ -1037,7 +1039,9 @@ class fightOddsIOScraper(MMAScraper):
                             print(f"Error deleting {file_name}: {e}")
 
                         #format fight_name 
+                        print(f'[DEBUG] applying process_fight_name...')
                         this_df['fight_name'] = this_df['fight_name'].apply(self.process_fight_name)
+                        print(f'[DEBUG] process_fight_name ok')
 
                         #add pull identifier for future merge use
                         this_df['pulled_id'] = pulled_id
@@ -1045,12 +1049,15 @@ class fightOddsIOScraper(MMAScraper):
 
 
                         this_df['matchup'] = ""
+                        print(f'[DEBUG] converting object columns...')
                         for col in this_df.columns:
                             if this_df[col].dtype == 'object':  # Check if column contains string data
                                 this_df[col] = this_df[col].apply(lambda x: self.convert_fraction_to_float(x) if isinstance(x, str) else x)
+                        print(f'[DEBUG] object columns ok')
 
 
                         this_df.replace({'▼': '', '▲': ''}, regex=True, inplace=True)
+                        print(f'[DEBUG] replace symbols ok')
 
                         
         
@@ -1058,6 +1065,7 @@ class fightOddsIOScraper(MMAScraper):
                         current_away_fighter = ''
                         current_home_fighter = ''
                         player_count = 0
+                        print(f'[DEBUG] starting row loop, len={len(this_df)}')
                         for idx, row in this_df.iterrows():
                             if pd.isna(row['class_name']) or row['class_name'].strip() == '':
                                 if player_count == 0:
@@ -1082,8 +1090,9 @@ class fightOddsIOScraper(MMAScraper):
                                     this_df.at[idx-1, 'away_team'] = team_2
                                     this_df.at[idx, 'away_team'] = team_2
                                     my_game_id = team_1.replace(' ', '_') + '_' + team_2.replace(' ', '_') + '_' + row['game_date'].replace(' ', '_').split('_')[0]
-                                    
+                                    print(f'[DEBUG] row idx={idx} get_or_create_ids my_game_id={my_game_id!r}')
                                     game_id, event_id = self.get_or_create_ids(my_game_id, row['fight_name'])
+                                    print(f'[DEBUG] row idx={idx} get_or_create_ids -> game_id={game_id}, event_id={event_id}')
 
 
                                     this_df.at[idx - 1, 'game_id'] = int(game_id)
@@ -1111,7 +1120,11 @@ class fightOddsIOScraper(MMAScraper):
 
                                     this_df.at[idx, 'event_id'] = int(event_id)
 
+                        print(f'[DEBUG] row loop done')
                     except Exception as e:
+                        import traceback
+                        print(f'[DEBUG] FAILED: {e}')
+                        traceback.print_exc()
                         print(f"Error processing {file_name}: {e}")
                             # Delete the problematic file
                         try:
@@ -1122,6 +1135,7 @@ class fightOddsIOScraper(MMAScraper):
                                 print(f"Error deleting {file_name}: {delete_error}")
                                 continue
 
+                    print(f'[DEBUG] concat this_df (shape={this_df.shape}) into total_df')
                     total_df = pd.concat([total_df, this_df])
 
         total_df.to_csv('total_df.csv', index=False)
@@ -1584,6 +1598,8 @@ while True:
             fightOddsIO.format_odds()
         except Exception as e:
             logger.info(f"Error occurred while formatting odds for event {i}: {e}")
+            print(traceback.format_exc())
+            print(f'[DEBUG] FAILED: {e}')
             continue
         try:
             fightOddsIO.get_mma_data_for_cache()
