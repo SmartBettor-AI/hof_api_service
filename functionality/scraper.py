@@ -479,7 +479,13 @@ class fightOddsIOScraper(MMAScraper):
                     headless=True,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
-                page = browser.new_page()
+                proxy = {
+                    "server": "http://geo.iproyal.com:12321",
+                    "username": "qyM9d25gbxsra2UP",
+                    "password": "e5ChXHYHhTTdC7Hu_streaming-1",
+                }
+                context = browser.new_context(proxy=proxy)
+                page = context.new_page()
                 page.goto(url)
 
                 try:
