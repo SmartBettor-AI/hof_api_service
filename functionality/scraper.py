@@ -1,3 +1,4 @@
+from nturl2path import url2pathname
 import requests
 from playwright.sync_api import sync_playwright
 
@@ -476,7 +477,7 @@ class fightOddsIOScraper(MMAScraper):
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
-                    headless=True,
+                    headless=False,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
                 proxy = {
@@ -486,8 +487,10 @@ class fightOddsIOScraper(MMAScraper):
                 }
                 context = browser.new_context(proxy=proxy)
                 page = context.new_page()
-                page.goto(url)
-
+                page.goto(
+                    url,
+                    wait_until="domcontentloaded"
+                )
                 try:
                     buttons = page.locator(".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
                     count = buttons.count()
