@@ -477,7 +477,7 @@ class fightOddsIOScraper(MMAScraper):
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
-                    headless=False,
+                    headless=True,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
                 proxy = {
@@ -487,10 +487,23 @@ class fightOddsIOScraper(MMAScraper):
                 }
                 context = browser.new_context(proxy=proxy)
                 page = context.new_page()
+                page.set_default_navigation_timeout(60000)
+
+                # Block images/fonts to speed load and avoid slow-resource timeouts
+                def block_heavy_resources(route):
+                    if route.request.resource_type in ("image", "font"):
+                        route.abort()
+                    else:
+                        route.continue_()
+
+                page.route("**/*", block_heavy_resources)
+
                 page.goto(
                     url,
-                    wait_until="domcontentloaded"
+                    wait_until="domcontentloaded",
+                    timeout=60000
                 )
+                page.wait_for_selector("table", timeout=60000)
                 try:
                     buttons = page.locator(".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
                     count = buttons.count()
