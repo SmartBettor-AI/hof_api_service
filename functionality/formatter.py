@@ -170,6 +170,12 @@ class Formatter:
                         return 'fight_to_end_by_submission'
                     if re.search(r'doesn\'?t\s+win\s+by\s+(tko[/\s]*ko|ko[/\s]*tko)', market):
                         return 'player_to_win_by_ko_or_tko'
+                    if re.search(r'doesn\'?t\s+win\s+by\s+decision\b', market):
+                        return 'player_to_win_by_decision'
+                    if re.search(r'doesn\'?t\s+win\s+by\s+submission\b', market):
+                        return 'player_to_win_by_submission'
+                    if re.search(r'doesn\'?t\s+win\s+by\s+ko\b', market) and 'tko' not in market:
+                        return 'player_to_win_by_ko'
 
             # Blank market_key: parse market for "wins in round N" patterns (Method + Round)
             market = str(row.get('market', '')).lower()
@@ -380,6 +386,7 @@ class Formatter:
 
     def format_cleanup(self):
         """Drop rows with null outcome/game_id, drop odds column, add cached_links."""
+        self.df.to_csv('before_cleanup.csv', index=False)
         self.df = self.df[self.df['outcome'].notna()]
         self.df = self.df[self.df['game_id'].notna()]
         self.df = self.df[self.df['market_key'].notna()]
