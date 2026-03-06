@@ -170,6 +170,12 @@ class Formatter:
                         return 'fight_to_end_by_submission'
                     if re.search(r'doesn\'?t\s+win\s+by\s+(tko[/\s]*ko|ko[/\s]*tko)', market):
                         return 'player_to_win_by_ko_or_tko'
+                    if re.search(r'doesn\'?t\s+win\s+by\s+decision\b', market):
+                        return 'player_to_win_by_decision'
+                    if re.search(r'doesn\'?t\s+win\s+by\s+submission\b', market):
+                        return 'player_to_win_by_submission'
+                    if re.search(r'doesn\'?t\s+win\s+by\s+ko\b', market) and 'tko' not in market:
+                        return 'player_to_win_by_ko'
 
             # Blank market_key: parse market for "wins in round N" patterns (Method + Round)
             market = str(row.get('market', '')).lower()
@@ -247,6 +253,80 @@ class Formatter:
         self.df['outcome_name'] = [r[0] for r in results]
         self.df['outcome_description'] = [r[1] for r in results]
         self.df['outcome_point'] = [r[2] for r in results]
+        return self.df
+
+    # Odds/bookmaker columns to clear when creating placeholder rows (no odds)
+    _ODDS_COLUMNS = {
+        'bovada', 'pinnacle', 'draftkings', 'fanduel', 'polymarket', 'betrivers',
+        'hardrockbet', 'betmgm', 'caesars', 'pointsbet',
+        'highest_bettable_odds', 'average_bettable_odds', 'sportsbooks_used', 'odds',
+    }
+
+    def ensure_player_to_win_by_submission_no_rows(self):
+        """For each fight, ensure there is a row for player_to_win_by_submission with outcome No
+        for each fighter. If missing, duplicate a row from that fight and set market_key, outcome_*,
+        and clear odds. New rows are inserted after the last row of each fight (so they appear
+        with their fight, not at the end). Call after format_outcome_description_name_point, before format_merge_outcome_wagers."""
+        if 'game_id' not in self.df.columns or 'market_key' not in self.df.columns:
+            return self.df
+
+        valid = self.df[self.df['game_id'].notna() & (self.df['game_id'].astype(str).str.strip() != '')]
+        if valid.empty:
+            return self.df
+
+        existing = self.df[
+            (self.df['market_key'] == 'player_to_win_by_submission') &
+            (self.df['outcome_name'] == 'No')
+        ]
+        existing_pairs = set(
+            zip(
+                existing['game_id'].astype(str).str.strip(),
+                existing['outcome_description'].fillna('').astype(str).str.strip()
+            )
+        )
+
+        # Build (insert_after_index, new_row) so we insert No rows right after each fight's last row
+        inserts = []  # list of (index_after_which_to_insert, list of row dicts)
+        for game_id, group in valid.groupby('game_id'):
+            game_id_str = str(game_id).strip()
+            first = group.iloc[0]
+            last_idx = group.index[-1]
+            home = str(first.get('home_team', '') or '').strip()
+            away = str(first.get('away_team', '') or '').strip()
+            for fighter in (home, away):
+                if not fighter:
+                    continue
+                if (game_id_str, fighter) in existing_pairs:
+                    continue
+                row = first.to_dict()
+                row['market'] = f"{fighter} doesn't win by submission"
+                row['market_key'] = 'player_to_win_by_submission'
+                row['outcome_name'] = 'No'
+                row['outcome_description'] = fighter
+                row['outcome_point'] = None
+                for col in self._ODDS_COLUMNS:
+                    if col in row:
+                        row[col] = pd.NA
+                inserts.append((last_idx, row))
+
+        if not inserts:
+            return self.df
+
+        # Insert in reverse order of index so positions don't shift
+        inserts_by_idx = {}
+        for idx, row in inserts:
+            inserts_by_idx.setdefault(idx, []).append(row)
+
+        pieces = []
+        last_end = 0
+        for idx in sorted(inserts_by_idx.keys()):
+            pieces.append(self.df.iloc[last_end : idx + 1])
+            extra = pd.DataFrame(inserts_by_idx[idx])
+            extra = extra.reindex(columns=self.df.columns)
+            pieces.append(extra)
+            last_end = idx + 1
+        pieces.append(self.df.iloc[last_end:])
+        self.df = pd.concat(pieces, ignore_index=True)
         return self.df
 
     def format_merge_outcome_wagers(self):
@@ -380,6 +460,7 @@ class Formatter:
 
     def format_cleanup(self):
         """Drop rows with null outcome/game_id, drop odds column, add cached_links."""
+        self.df.to_csv('before_cleanup.csv', index=False)
         self.df = self.df[self.df['outcome'].notna()]
         self.df = self.df[self.df['game_id'].notna()]
         self.df = self.df[self.df['market_key'].notna()]
