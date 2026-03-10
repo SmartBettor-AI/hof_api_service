@@ -573,7 +573,7 @@ class fightOddsIOScraper(MMAScraper):
             df['class_name'] = class_names
             df.to_csv('oddstable.csv')
             df = df.rename(columns={'Fighters': 'market'})
-            for col in ['Unnamed: 18', 'Unnamed: 17', 'Unnamed: 24']:
+            for col in ['Unnamed: 18', 'Unnamed: 17', 'Unnamed: 24', 'Unnamed: 23']:
                 if col in df.columns:
                     df = df.drop(columns=[col])
 
@@ -584,9 +584,10 @@ class fightOddsIOScraper(MMAScraper):
 
 
             print(df.columns)
-            df = df.drop(columns=['BetOnline', 'MyBookie', 'BetUS', 'Bet105',
-       'Bookmaker', '4Cx', 'BetAnything', 'Circa',
-        'Jazz', 'Betway', 'Stake', 'Cloudbet', '4casters', 'SXBet'])
+            cols_to_drop = ['BetOnline', 'MyBookie', 'BetUS', 'Bet105',
+                'Bookmaker', '4Cx', 'BetAnything', 'Circa',
+                'Jazz', 'Betway', 'Stake', 'Cloudbet', '4casters', 'SXBet']
+            df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
 
             name_and_date = self.find_fight_name_and_date(soup)
             df['fight_name'] = name_and_date[0]
