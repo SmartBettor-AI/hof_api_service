@@ -1,3 +1,4 @@
+from nturl2path import url2pathname
 import requests
 from playwright.sync_api import sync_playwright
 
@@ -486,8 +487,23 @@ class fightOddsIOScraper(MMAScraper):
                 }
                 context = browser.new_context(proxy=proxy)
                 page = context.new_page()
-                page.goto(url)
+                page.set_default_navigation_timeout(60000)
 
+                # Block images/fonts to speed load and avoid slow-resource timeouts
+                def block_heavy_resources(route):
+                    if route.request.resource_type in ("image", "font"):
+                        route.abort()
+                    else:
+                        route.continue_()
+
+                page.route("**/*", block_heavy_resources)
+
+                page.goto(
+                    url,
+                    wait_until="domcontentloaded",
+                    timeout=60000
+                )
+                page.wait_for_selector("table", timeout=60000)
                 try:
                     buttons = page.locator(".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
                     count = buttons.count()
@@ -557,7 +573,7 @@ class fightOddsIOScraper(MMAScraper):
             df['class_name'] = class_names
             df.to_csv('oddstable.csv')
             df = df.rename(columns={'Fighters': 'market'})
-            for col in ['Unnamed: 18', 'Unnamed: 17', 'Unnamed: 24']:
+            for col in ['Unnamed: 18', 'Unnamed: 17', 'Unnamed: 24', 'Unnamed: 23']:
                 if col in df.columns:
                     df = df.drop(columns=[col])
 
@@ -568,9 +584,10 @@ class fightOddsIOScraper(MMAScraper):
 
 
             print(df.columns)
-            df = df.drop(columns=['BetOnline', 'MyBookie', 'BetUS', 'Bet105',
-       'Bookmaker', '4Cx', 'BetAnything', 'Circa',
-        'Jazz', 'Betway', 'Stake', 'Cloudbet', '4casters', 'SXBet'])
+            cols_to_drop = ['BetOnline', 'MyBookie', 'BetUS', 'Bet105',
+                'Bookmaker', '4Cx', 'BetAnything', 'Circa',
+                'Jazz', 'Betway', 'Stake', 'Cloudbet', '4casters', 'SXBet']
+            df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
 
             name_and_date = self.find_fight_name_and_date(soup)
             df['fight_name'] = name_and_date[0]
