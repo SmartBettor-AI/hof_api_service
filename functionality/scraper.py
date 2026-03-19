@@ -1303,10 +1303,10 @@ class fightOddsIOScraper(MMAScraper):
 
         # Apply formatter methods
         formatter.find_odds_api_game_id()
-
         formatter.format_sport_title()
         formatter.format_market_key()
         formatter.format_outcome_description_name_point()
+        formatter.ensure_player_to_win_by_submission_no_rows()
         formatter.format_merge_outcome_wagers()
         formatter.format_market_display()
         formatter.format_wager_display()
