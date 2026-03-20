@@ -477,7 +477,7 @@ class fightOddsIOScraper(MMAScraper):
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
-                    headless=True,
+                    headless=False,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
                 proxy = {
@@ -498,12 +498,16 @@ class fightOddsIOScraper(MMAScraper):
 
                 page.route("**/*", block_heavy_resources)
 
-                page.goto(
-                    url,
-                    wait_until="domcontentloaded",
-                    timeout=60000
-                )
-                page.wait_for_selector("table", timeout=60000)
+                try:
+                    page.goto(
+                        url,
+                        wait_until="domcontentloaded",
+                        timeout=60000
+                    )
+                    page.wait_for_selector("table", timeout=60000)
+                except Exception as e:
+                    logger.warning(f"Skipping {url} due to navigation/table load error: {e}")
+                    return
                 try:
                     buttons = page.locator(".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
                     count = buttons.count()
@@ -567,9 +571,31 @@ class fightOddsIOScraper(MMAScraper):
             # class_names = class_names[1:]
 
             # Convert the table to a DataFrame
+            try:
+                parsed_tables = pd.read_html(str(table))
+            except ValueError:
+                logger.warning(f"Skipping {url}: no parseable HTML tables found")
+                return
 
-            df = pd.read_html(str(table))[0]
+            if not parsed_tables:
+                logger.warning(f"Skipping {url}: empty parsed tables list")
+                return
+
+            df = parsed_tables[0]
+            if df.empty:
+                logger.warning(f"Skipping {url}: parsed table is empty")
+                return
+
             print(len(df))
+            if len(class_names) != len(df):
+                logger.warning(
+                    f"Class names count ({len(class_names)}) != table rows ({len(df)}) for {url}; normalizing lengths"
+                )
+                if len(class_names) < len(df):
+                    class_names.extend([''] * (len(df) - len(class_names)))
+                else:
+                    class_names = class_names[:len(df)]
+
             df['class_name'] = class_names
             df.to_csv('oddstable.csv')
             df = df.rename(columns={'Fighters': 'market'})
