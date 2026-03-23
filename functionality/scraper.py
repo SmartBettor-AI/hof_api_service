@@ -477,15 +477,16 @@ class fightOddsIOScraper(MMAScraper):
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
-                    headless=False,
+                    headless=True,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
-                proxy = {
-                    "server": "http://geo.iproyal.com:12321",
-                    "username": "qyM9d25gbxsra2UP",
-                    "password": "e5ChXHYHhTTdC7Hu_streaming-1",
-                }
-                context = browser.new_context(proxy=proxy)
+                # proxy = {
+                #     "server": "http://geo.iproyal.com:12321",
+                #     "username": "qyM9d25gbxsra2UP",
+                #     "password": "e5ChXHYHhTTdC7Hu_streaming-1",
+                # }
+                # context = browser.new_context(proxy=proxy)
+                context = browser.new_context()
                 page = context.new_page()
                 page.set_default_navigation_timeout(60000)
 
