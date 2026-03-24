@@ -1676,7 +1676,7 @@ while True:
             )
             time.sleep(60 * 60)
         else:
-            time.sleep(10)
+            time.sleep(300)
     
     logger.info("Events Done!")
     # time.sleep(300)
