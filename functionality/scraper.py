@@ -481,10 +481,17 @@ class fightOddsIOScraper(MMAScraper):
                     headless=True,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
+                # Datacenter proxy (override with FIGHTODDS_PROXY_* env vars)
                 proxy = {
-                    "server": "http://geo.iproyal.com:12321",
-                    "username": "qyM9d25gbxsra2UP",
-                    "password": "e5ChXHYHhTTdC7Hu_streaming-1",
+                    "server": os.environ.get(
+                        "FIGHTODDS_PROXY_SERVER", "http://199.182.170.81:12323"
+                    ),
+                    "username": os.environ.get(
+                        "FIGHTODDS_PROXY_USER", "14a3607a1dc03"
+                    ),
+                    "password": os.environ.get(
+                        "FIGHTODDS_PROXY_PASSWORD", "af89cd349d"
+                    ),
                 }
                 context = browser.new_context(proxy=proxy)
                 page = context.new_page()
