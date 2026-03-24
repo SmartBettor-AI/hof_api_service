@@ -475,14 +475,15 @@ class fightOddsIOScraper(MMAScraper):
                     
     def get_odds_per_page(self, url):
         table = None
+        soup = None
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
                     headless=True,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
-                # Datacenter proxy (override with FIGHTODDS_PROXY_* env vars)
-                proxy = {
+                # Datacenter first (FIGHTODDS_PROXY_*); residential backup (FIGHTODDS_RESIDENTIAL_PROXY_*)
+                datacenter_proxy = {
                     "server": os.environ.get(
                         "FIGHTODDS_PROXY_SERVER", "http://199.182.170.81:12323"
                     ),
@@ -493,48 +494,119 @@ class fightOddsIOScraper(MMAScraper):
                         "FIGHTODDS_PROXY_PASSWORD", "af89cd349d"
                     ),
                 }
-                context = browser.new_context(proxy=proxy)
-                page = context.new_page()
-                page.set_default_navigation_timeout(60000)
+                residential_server = os.environ.get(
+                    "FIGHTODDS_RESIDENTIAL_PROXY_SERVER",
+                    "http://geo.iproyal.com:12321",
+                )
+                residential_proxy = None
+                if residential_server:
+                    residential_proxy = {
+                        "server": residential_server,
+                        "username": os.environ.get(
+                            "FIGHTODDS_RESIDENTIAL_PROXY_USER",
+                            "qyM9d25gbxsra2UP",
+                        ),
+                        "password": os.environ.get(
+                            "FIGHTODDS_RESIDENTIAL_PROXY_PASSWORD",
+                            "e5ChXHYHhTTdC7Hu_streaming-1",
+                        ),
+                    }
 
-                # Block images/fonts to speed load and avoid slow-resource timeouts
                 def block_heavy_resources(route):
                     if route.request.resource_type in ("image", "font"):
                         route.abort()
                     else:
                         route.continue_()
 
-                page.route("**/*", block_heavy_resources)
-
-                try:
-                    page.goto(
+                def fetch_with_proxy(proxy_dict, label):
+                    logger.info(
+                        "Trying %s proxy for %s (server=%s)",
+                        label,
                         url,
-                        wait_until="domcontentloaded",
-                        timeout=60000
+                        proxy_dict.get("server", ""),
                     )
-                    page.wait_for_selector("table", timeout=60000)
-                except Exception as e:
-                    logger.warning(f"Skipping {url} due to navigation/table load error: {e}")
-                    return
+                    context = browser.new_context(proxy=proxy_dict)
+                    page = context.new_page()
+                    page.set_default_navigation_timeout(60000)
+                    page.route("**/*", block_heavy_resources)
+                    try:
+                        page.goto(
+                            url,
+                            wait_until="domcontentloaded",
+                            timeout=60000,
+                        )
+                        page.wait_for_selector("table", timeout=60000)
+                        buttons = page.locator(
+                            ".MuiButtonBase-root.MuiButton-root.MuiButton-contained"
+                        )
+                        count = buttons.count()
+                        if count > 0:
+                            buttons.first.wait_for(state="visible", timeout=10000)
+                            for i in range(count):
+                                buttons.nth(i).click()
+                                time.sleep(1)
+                        html_content = page.content()
+                        p_soup = BeautifulSoup(html_content, "html.parser")
+                        p_table = p_soup.find("table")
+                        logger.info(
+                            "%s proxy finished for %s (found <table>: %s)",
+                            label.capitalize(),
+                            url,
+                            p_table is not None,
+                        )
+                        return p_soup, p_table
+                    finally:
+                        context.close()
+
                 try:
-                    buttons = page.locator(".MuiButtonBase-root.MuiButton-root.MuiButton-contained")
-                    count = buttons.count()
-                    if count > 0:
-                        buttons.first.wait_for(state="visible", timeout=10000)
-                        for i in range(count):
-                            buttons.nth(i).click()
-                            time.sleep(1)
-
-                    html_content = page.content()
-                    soup = BeautifulSoup(html_content, "html.parser")
-                    table = soup.find("table")
-
+                    soup, table = fetch_with_proxy(datacenter_proxy, "datacenter")
                 except Exception as e:
-                    print(f"An error occurred: {e}")
+                    logger.warning(
+                        "Datacenter proxy failed for %s: %s; trying residential proxy",
+                        url,
+                        e,
+                    )
+                    if not residential_proxy:
+                        logger.warning(
+                            "Residential proxy is not configured; skipping %s",
+                            url,
+                        )
+                        return
+                    try:
+                        soup, table = fetch_with_proxy(
+                            residential_proxy, "residential"
+                        )
+                    except Exception as e2:
+                        logger.warning(
+                            "Residential proxy failed for %s after datacenter error: %s",
+                            url,
+                            e2,
+                        )
+                        return
+
+                if table is None and residential_proxy:
+                    logger.warning(
+                        "Datacenter proxy returned HTML with no <table> for %s; trying residential proxy",
+                        url,
+                    )
+                    try:
+                        soup, table = fetch_with_proxy(
+                            residential_proxy, "residential"
+                        )
+                    except Exception as e2:
+                        logger.warning(
+                            "Residential proxy failed for %s (no table from datacenter): %s",
+                            url,
+                            e2,
+                        )
+                        return
 
             if table is None:
+                logger.warning(
+                    "Skipping %s: no <table> in page after datacenter (and residential if tried)",
+                    url,
+                )
                 return
-
 
             # Extract the class names of each <tr> and store them
             class_names = []
