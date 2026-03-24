@@ -22,6 +22,7 @@ import random
 import http.client
 import os
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import uuid
 import redis
 from sqlalchemy import desc, func, select, text
@@ -1618,6 +1619,14 @@ class fightOddsIOScraper(MMAScraper):
         return decimal
 
 
+def _overnight_quiet_window_et():
+    """Mon–Thu, 2:00 AM–9:59 AM America/New_York (ET with DST)."""
+    et = datetime.now(ZoneInfo("America/New_York"))
+    if et.weekday() not in (0, 1, 2, 3):  # Monday=0 … Thursday=3
+        return False
+    return 2 <= et.hour < 10
+
+
 scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
 fightOddsIO = fightOddsIOScraper('https://fightodds.io/')
 i = 0
@@ -1661,7 +1670,13 @@ while True:
     except Exception as e:  # Catch all for any other exceptions
         logger.error(f"An unexpected error occurred: {e}")
     finally:
-        time.sleep(10)
+        if _overnight_quiet_window_et():
+            logger.info(
+                "Mon–Thu 2–10 AM ET quiet window: sleeping 60 minutes before next run"
+            )
+            time.sleep(60 * 60)
+        else:
+            time.sleep(10)
     
     logger.info("Events Done!")
     # time.sleep(300)
