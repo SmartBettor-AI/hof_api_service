@@ -479,10 +479,11 @@ class fightOddsIOScraper(MMAScraper):
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
-                    headless=True,
+                    headless=False,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
-                # Datacenter first (FIGHTODDS_PROXY_*); residential backup (FIGHTODDS_RESIDENTIAL_PROXY_*)
+                # Primary datacenter (FIGHTODDS_PROXY_*), backup datacenter (FIGHTODDS_PROXY_BACKUP_*),
+                # then residential (FIGHTODDS_RESIDENTIAL_PROXY_*).
                 datacenter_proxy = {
                     "server": os.environ.get(
                         "FIGHTODDS_PROXY_SERVER", "http://199.182.170.81:12323"
@@ -492,6 +493,18 @@ class fightOddsIOScraper(MMAScraper):
                     ),
                     "password": os.environ.get(
                         "FIGHTODDS_PROXY_PASSWORD", "af89cd349d"
+                    ),
+                }
+                backup_datacenter_proxy = {
+                    "server": os.environ.get(
+                        "FIGHTODDS_PROXY_BACKUP_SERVER",
+                        "http://91.193.235.12:12323",
+                    ),
+                    "username": os.environ.get(
+                        "FIGHTODDS_PROXY_BACKUP_USER", "14a3f34182469"
+                    ),
+                    "password": os.environ.get(
+                        "FIGHTODDS_PROXY_BACKUP_PASSWORD", "a6a291d171"
                     ),
                 }
                 residential_server = os.environ.get(
@@ -558,35 +571,31 @@ class fightOddsIOScraper(MMAScraper):
                     finally:
                         context.close()
 
-                try:
-                    soup, table = fetch_with_proxy(datacenter_proxy, "datacenter")
-                except Exception as e:
-                    logger.warning(
-                        "Datacenter proxy failed for %s: %s; trying residential proxy",
-                        url,
-                        e,
-                    )
-                    if not residential_proxy:
-                        logger.warning(
-                            "Residential proxy is not configured; skipping %s",
-                            url,
-                        )
-                        return
+                soup, table = None, None
+                for proxy_dict, label in (
+                    (datacenter_proxy, "datacenter"),
+                    (backup_datacenter_proxy, "datacenter backup"),
+                ):
                     try:
-                        soup, table = fetch_with_proxy(
-                            residential_proxy, "residential"
-                        )
-                    except Exception as e2:
+                        soup, table = fetch_with_proxy(proxy_dict, label)
+                        if table is not None:
+                            break
                         logger.warning(
-                            "Residential proxy failed for %s after datacenter error: %s",
+                            "%s proxy returned HTML with no <table> for %s; trying next proxy",
+                            label.capitalize(),
                             url,
-                            e2,
                         )
-                        return
+                    except Exception as e:
+                        logger.warning(
+                            "%s proxy failed for %s: %s; trying next proxy",
+                            label.capitalize(),
+                            url,
+                            e,
+                        )
 
                 if table is None and residential_proxy:
                     logger.warning(
-                        "Datacenter proxy returned HTML with no <table> for %s; trying residential proxy",
+                        "Datacenter proxies exhausted for %s; trying residential proxy",
                         url,
                     )
                     try:
@@ -595,7 +604,7 @@ class fightOddsIOScraper(MMAScraper):
                         )
                     except Exception as e2:
                         logger.warning(
-                            "Residential proxy failed for %s (no table from datacenter): %s",
+                            "Residential proxy failed for %s: %s",
                             url,
                             e2,
                         )
@@ -603,7 +612,7 @@ class fightOddsIOScraper(MMAScraper):
 
             if table is None:
                 logger.warning(
-                    "Skipping %s: no <table> in page after datacenter (and residential if tried)",
+                    "Skipping %s: no <table> in page after datacenter, backup datacenter, and residential if tried",
                     url,
                 )
                 return
