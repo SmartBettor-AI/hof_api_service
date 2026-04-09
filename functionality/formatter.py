@@ -41,6 +41,7 @@ class Formatter:
             key = unidecode(str(row['odds_api_team_name']).strip()) if pd.notnull(row['odds_api_team_name']) else ''
             val = unidecode(str(row['team_name']).strip()) if pd.notnull(row['team_name']) else ''
             mapping[key] = val
+        mapping['Paulo Costa'] = 'Paulo Henrique Costa'
         return mapping
     
     def _build_odds_api_game_id_map(self):
@@ -108,7 +109,90 @@ class Formatter:
 
     def format_market_key(self):
         """Transform existing market_key: h2h->h2h, totals->alternate_totals, Main Total->totals.
-        When blank: if market_type == 'Alt Totals' -> 'alternate_totals'."""
+        When blank or invalid: derive from market_type/odds + market columns."""
+
+        def _resolve_category(row):
+            """Return the market category string, checking market_type then odds.
+
+            Some HOF API rows have the category in 'odds' (not market_type) when
+            market_key is incorrectly set to the fighter name.
+            """
+            for col in ('market_type', 'odds'):
+                val = row.get(col)
+                if pd.isnull(val):
+                    continue
+                s = str(val).strip()
+                # Skip yes/no flags ('0'/'1'), empty, nan, and JSON blobs
+                if s and s not in ('0', '1', 'nan') and not s.startswith('{'):
+                    return s
+            return ''
+
+        def _derive_from_category(category, market):
+            """Given a category name and market display string, return the market_key."""
+            mt_lower = category.lower()
+            m = market.lower()
+
+            if mt_lower == 'alt totals':
+                return 'alternate_totals'
+            if mt_lower == 'distance (y/n)':
+                return 'fight_to_go_the_distance'
+            if mt_lower == 'fight lines':
+                return 'h2h'
+            if mt_lower == 'double chance':
+                has_ko_tko = bool(re.search(r'ko[/\s]*tko|tko|ko', m))
+                has_decision = 'decision' in m
+                has_submission = 'submission' in m
+                if has_ko_tko and has_decision and not has_submission:
+                    return 'player_to_win_by_ko_or_tko_or_decision'
+                if has_ko_tko and has_submission and not has_decision:
+                    return 'player_to_win_by_ko_or_tko_or_submission'
+                if has_submission and has_decision and not has_ko_tko:
+                    return 'player_to_win_by_submission_or_decision'
+            if mt_lower == 'method of victory':
+                if re.search(r'fight\s+ends?\s+by\s+ko', m) or re.search(r'fight\s+ends?\s+.*ko.*tko.*dq', m):
+                    return 'fight_to_end_by_ko_or_tko_or_dq'
+                if re.search(r'fight\s+ends?\s+.*submission', m):
+                    return 'fight_to_end_by_submission'
+                if re.search(r'fight\s+goes?\s+the\s+distance', m):
+                    return 'fight_to_go_the_distance'
+                if re.search(r'wins?\s+by\s+(tko[/\s]*ko|ko[/\s]*tko)\b', m):
+                    return 'player_to_win_by_ko_or_tko'
+                if re.search(r'wins?\s+by\s+ko\b', m) and 'tko' not in m:
+                    return 'player_to_win_by_ko'
+                if re.search(r'wins?\s+by\s+submission\b', m):
+                    return 'player_to_win_by_submission'
+                if re.search(r'wins?\s+by\s+decision\b', m):
+                    return 'player_to_win_by_decision'
+            if mt_lower == 'round props':
+                round_match = re.search(r'wins?\s+in\s+round\s+(\d)', m)
+                if round_match:
+                    return f'player_to_win_in_round_{round_match.group(1)}'
+            if mt_lower == 'other props':
+                if re.search(r'fight\s+doesn\'?t\s+end\s+by\s+ko', m) or re.search(r'fight\s+doesn\'?t\s+end.*ko.*tko.*dq', m):
+                    return 'fight_to_end_by_ko_or_tko_or_dq'
+                if re.search(r'fight\s+doesn\'?t\s+end.*submission', m):
+                    return 'fight_to_end_by_submission'
+                if re.search(r'doesn\'?t\s+win\s+by\s+(tko[/\s]*ko|ko[/\s]*tko)', m):
+                    return 'player_to_win_by_ko_or_tko'
+                if re.search(r'doesn\'?t\s+win\s+by\s+decision\b', m):
+                    return 'player_to_win_by_decision'
+                if re.search(r'doesn\'?t\s+win\s+by\s+submission\b', m):
+                    return 'player_to_win_by_submission'
+                if re.search(r'doesn\'?t\s+win\s+by\s+ko\b', m) and 'tko' not in m:
+                    return 'player_to_win_by_ko'
+                # "Fight doesn't start round N" / "Fight ends in round N" -> alternate_totals
+                if re.search(r"fight\s+doesn'?t\s+start\s+round|fight\s+ends?\s+in\s+round", m):
+                    return 'alternate_totals'
+            if mt_lower == 'method + round':
+                round_match = re.search(r'wins?\s+in\s+round\s+(\d)', m)
+                if round_match:
+                    r_n = round_match.group(1)
+                    if re.search(r'ko|tko|dq', m):
+                        return f'player_to_win_by_ko_or_tko_or_dq_round_{r_n}'
+                    if 'submission' in m:
+                        return f'player_to_win_by_submission_round_{r_n}'
+            return None
+
         def _transform(row):
             orig = row['market_key']
             if pd.notnull(orig) and str(orig).strip():
@@ -119,75 +203,31 @@ class Formatter:
                     return 'alternate_totals'
                 if s == 'Main Total':
                     return 'totals'
-                return orig
+                # Valid snake_case market key — pass through unchanged
+                if re.match(r'^[a-z][a-z0-9_]*$', s):
+                    return s
+                # Invalid value (e.g. fighter name leaked into column): fall through
+                # to derive the correct key from category + market description below.
 
-            # Blank market_key: use market_type (case-insensitive)
-            if 'market_type' in row.index and pd.notnull(row.get('market_type')):
-                mt = str(row['market_type']).strip()
-                mt_lower = mt.lower()
-                if mt_lower == 'alt totals':
-                    return 'alternate_totals'
-                if mt_lower == 'distance (y/n)':
-                    return 'fight_to_go_the_distance'
-                if mt_lower == 'double chance':
-                    market = str(row.get('market', '')).lower()
-                    has_ko_tko = bool(re.search(r'ko[/\s]*tko|tko|ko', market))
-                    has_decision = 'decision' in market
-                    has_submission = 'submission' in market
-                    if has_ko_tko and has_decision and not has_submission:
-                        return 'player_to_win_by_ko_or_tko_or_decision'
-                    if has_ko_tko and has_submission and not has_decision:
-                        return 'player_to_win_by_ko_or_tko_or_submission'
-                    if has_submission and has_decision and not has_ko_tko:
-                        return 'player_to_win_by_submission_or_decision'
-                if mt_lower == 'method of victory':
-                    market = str(row.get('market', '')).lower()
-                    if re.search(r'fight\s+ends?\s+by\s+ko', market) or re.search(r'fight\s+ends?\s+.*ko.*tko.*dq', market):
-                        return 'fight_to_end_by_ko_or_tko_or_dq'
-                    if re.search(r'fight\s+ends?\s+.*submission', market):
-                        return 'fight_to_end_by_submission'
-                    if re.search(r'fight\s+goes?\s+the\s+distance', market):
-                        return 'fight_to_go_the_distance'
-                    if re.search(r'wins?\s+by\s+(tko[/\s]*ko|ko[/\s]*tko)\b', market):
-                        return 'player_to_win_by_ko_or_tko'
-                    if re.search(r'wins?\s+by\s+ko\b', market) and 'tko' not in market:
-                        return 'player_to_win_by_ko'
-                    if re.search(r'wins?\s+by\s+submission\b', market):
-                        return 'player_to_win_by_submission'
-                    if re.search(r'wins?\s+by\s+decision\b', market):
-                        return 'player_to_win_by_decision'
-                if mt_lower == 'round props':
-                    market = str(row.get('market', '')).lower()
-                    round_match = re.search(r'wins?\s+in\s+round\s+(\d)', market)
-                    if round_match:
-                        return f'player_to_win_in_round_{round_match.group(1)}'
-                if mt_lower == 'other props':
-                    # Negation markets use same market_key as positive (outcome differs later)
-                    market = str(row.get('market', '')).lower()
-                    if re.search(r'fight\s+doesn\'?t\s+end\s+by\s+ko', market) or re.search(r'fight\s+doesn\'?t\s+end.*ko.*tko.*dq', market):
-                        return 'fight_to_end_by_ko_or_tko_or_dq'
-                    if re.search(r'fight\s+doesn\'?t\s+end.*submission', market):
-                        return 'fight_to_end_by_submission'
-                    if re.search(r'doesn\'?t\s+win\s+by\s+(tko[/\s]*ko|ko[/\s]*tko)', market):
-                        return 'player_to_win_by_ko_or_tko'
-                    if re.search(r'doesn\'?t\s+win\s+by\s+decision\b', market):
-                        return 'player_to_win_by_decision'
-                    if re.search(r'doesn\'?t\s+win\s+by\s+submission\b', market):
-                        return 'player_to_win_by_submission'
-                    if re.search(r'doesn\'?t\s+win\s+by\s+ko\b', market) and 'tko' not in market:
-                        return 'player_to_win_by_ko'
+            market = str(row.get('market', '')).strip()
+            category = _resolve_category(row)
 
-            # Blank market_key: parse market for "wins in round N" patterns (Method + Round)
-            market = str(row.get('market', '')).lower()
-            round_match = re.search(r'wins?\s+in\s+round\s+(\d)', market)
+            if category:
+                result = _derive_from_category(category, market)
+                if result:
+                    return result
+
+            # Last-resort: parse market display text for round patterns
+            market_lower = market.lower()
+            round_match = re.search(r'wins?\s+in\s+round\s+(\d)', market_lower)
             if round_match:
-                r = round_match.group(1)
-                if re.search(r'ko|tko|dq', market):
-                    return f'player_to_win_by_ko_or_tko_or_dq_round_{r}'
-                if 'submission' in market:
-                    return f'player_to_win_by_submission_round_{r}'
+                r_n = round_match.group(1)
+                if re.search(r'ko|tko|dq', market_lower):
+                    return f'player_to_win_by_ko_or_tko_or_dq_round_{r_n}'
+                if 'submission' in market_lower:
+                    return f'player_to_win_by_submission_round_{r_n}'
 
-            return orig
+            return None  # Will be dropped by format_cleanup
 
         if 'market_key' in self.df.columns:
             self.df['market_key'] = self.df.apply(_transform, axis=1)
@@ -462,13 +502,20 @@ class Formatter:
         """Drop rows with null outcome/game_id, drop odds column, add cached_links."""
         self.df.to_csv('before_cleanup.csv', index=False)
         self.df = self.df[self.df['outcome'].notna()]
+        print("After dropping rows with null outcome: ", len(self.df))
         self.df = self.df[self.df['game_id'].notna()]
+        print("After dropping rows with null game_id: ", len(self.df))
         self.df = self.df[self.df['market_key'].notna()]
+        print("After dropping rows with null market_key: ", len(self.df))
         self.df = self.df[self.df['market_key'] != '']
+        print("After dropping rows with empty market_key: ", len(self.df))
         # Drop totals/alternate_totals rows with null outcome_name
         totals_mask = self.df['market_key'].isin(['totals', 'alternate_totals'])
         null_outcome = self.df['outcome_name'].isna()
         self.df = self.df[~(totals_mask & null_outcome)]
+        print("After dropping rows with null outcome_name: ", len(self.df))
         self.df = self.df.drop(columns=['odds'], errors='ignore')
+        print("After dropping odds column: ", len(self.df))
         self.df['cached_links'] = ''
+        print("After adding cached_links column: ", len(self.df))
         return self.df
