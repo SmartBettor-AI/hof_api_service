@@ -1424,6 +1424,10 @@ class fightOddsIOScraper(MMAScraper):
 
         exclude_columns.append('game_id')
 
+        # Preserve the integer DB game_id (FK to mma_games.id) before the formatter
+        # overwrites game_id with the odds-API hex string.
+        merged_df['db_game_id'] = merged_df['game_id']
+
         formatter = Formatter(merged_df)
 
         # Apply formatter methods
@@ -1453,7 +1457,7 @@ class fightOddsIOScraper(MMAScraper):
                     'sportsbooks_used': str(row['sportsbooks_used']),
                     'market_key': row['market_key'],
                     'game_date': row['game_date'],
-                    'game_id': row['game_id'],
+                    'game_id': row['db_game_id'],
                     'event_id' : row['event_id'],
                     'pulled_time': datetime.now(),
                     'average_market_odds' : row['average_bettable_odds'],
