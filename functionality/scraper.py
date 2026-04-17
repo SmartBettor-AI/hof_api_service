@@ -1294,21 +1294,14 @@ class fightOddsIOScraper(MMAScraper):
 
         # Drop columns from bestFightOdds that conflict with total_df
         # This will remove columns like 'team_bestFightOdds', keeping only the ones from total_df
-        for col in merged_df.columns:
+        for col in list(merged_df.columns):
             if col.endswith('_bestFightOdds'):
-                # Find the base column without the suffix
                 base_col = col.replace('_bestFightOdds', '')
-                
-                # Check if the base column exists in the merged dataframe
                 if base_col in merged_df.columns:
-                    # Fill NaNs in the base column with values from the bestFightOdds column
                     merged_df[base_col].fillna(merged_df[col], inplace=True)
-                
-                # After filling, drop the _bestFightOdds column
                 merged_df.drop(col, axis=1, inplace=True)
 
-                # Save or return the final merged DataFrame
-                merged_df.to_csv('merged_output.csv', index=False)
+        merged_df.to_csv('merged_output.csv', index=False)
 
         
         ####Prize Picks API Caller
@@ -1321,7 +1314,7 @@ class fightOddsIOScraper(MMAScraper):
             prize_picks_df.to_csv('prize_picks_output.csv', index=False)
             
             # Perform merge with PrizePicks data
-            merged_df = pd.merge(merged_df, prize_picks_df, on=['market', 'game_id'], how='outer')
+            merged_df = pd.merge(merged_df, prize_picks_df, on=['market', 'game_id'], how='left')
             common_columns = [col.replace('_x', '') for col in merged_df.columns if col.endswith('_x')]
 
             # Combine _x and _y columns
@@ -1340,7 +1333,7 @@ class fightOddsIOScraper(MMAScraper):
             underdog_df.to_csv('underdog_output.csv', index=False)
             
             # Perform merge with Underdog data
-            merged_df = pd.merge(merged_df, underdog_df, on=['market', 'game_id'], how='outer')
+            merged_df = pd.merge(merged_df, underdog_df, on=['market', 'game_id'], how='left')
             
             # Get new common columns for Underdog merge
             ud_common_columns = [col.replace('_x', '') for col in merged_df.columns if col.endswith('_x')]
