@@ -482,31 +482,7 @@ class fightOddsIOScraper(MMAScraper):
                     headless=True,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
-                # Primary datacenter (FIGHTODDS_PROXY_*), backup datacenter (FIGHTODDS_PROXY_BACKUP_*),
-                # then residential (FIGHTODDS_RESIDENTIAL_PROXY_*).
-                datacenter_proxy = {
-                    "server": os.environ.get(
-                        "FIGHTODDS_PROXY_SERVER", "http://199.182.170.81:12323"
-                    ),
-                    "username": os.environ.get(
-                        "FIGHTODDS_PROXY_USER", "14a3607a1dc03"
-                    ),
-                    "password": os.environ.get(
-                        "FIGHTODDS_PROXY_PASSWORD", "af89cd349d"
-                    ),
-                }
-                backup_datacenter_proxy = {
-                    "server": os.environ.get(
-                        "FIGHTODDS_PROXY_BACKUP_SERVER",
-                        "http://91.193.235.12:12323",
-                    ),
-                    "username": os.environ.get(
-                        "FIGHTODDS_PROXY_BACKUP_USER", "14a3f34182469"
-                    ),
-                    "password": os.environ.get(
-                        "FIGHTODDS_PROXY_BACKUP_PASSWORD", "a6a291d171"
-                    ),
-                }
+                # Datacenter first (tertiary credentials), then residential rotation.
                 tertiary_datacenter_proxy = {
                     "server": os.environ.get(
                         "FIGHTODDS_PROXY_TERTIARY_SERVER",
@@ -602,6 +578,24 @@ class fightOddsIOScraper(MMAScraper):
                     else:
                         route.continue_()
 
+                def notify_datacenter_proxy_failure(label, proxy_dict, error_obj):
+                    webhook_url = os.environ.get("FIGHTODDS_SLACK_WEBHOOK_URL", "").strip()
+                    if not webhook_url:
+                        return
+                    try:
+                        payload = {
+                            "text": (
+                                ":warning: fightodds scraper datacenter proxy failure\n"
+                                f"label={label}\n"
+                                f"server={proxy_dict.get('server', '')}\n"
+                                f"url={url}\n"
+                                f"error={error_obj}"
+                            )
+                        }
+                        requests.post(webhook_url, json=payload, timeout=8)
+                    except Exception as slack_error:
+                        logger.warning("Failed to send Slack datacenter alert: %s", slack_error)
+
                 def fetch_with_proxy(proxy_dict, label):
                     logger.info(
                         "Trying %s proxy for %s (server=%s session=%s country=%s)",
@@ -654,8 +648,6 @@ class fightOddsIOScraper(MMAScraper):
 
                 soup, table = None, None
                 for proxy_dict, label in (
-                    (datacenter_proxy, "datacenter"),
-                    (backup_datacenter_proxy, "datacenter backup"),
                     (tertiary_datacenter_proxy, "datacenter tertiary"),
                 ):
                     try:
@@ -668,6 +660,8 @@ class fightOddsIOScraper(MMAScraper):
                             url,
                         )
                     except Exception as e:
+                        if label.startswith("datacenter"):
+                            notify_datacenter_proxy_failure(label, proxy_dict, e)
                         logger.warning(
                             "%s proxy failed for %s: %s; trying next proxy",
                             label.capitalize(),
