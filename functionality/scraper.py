@@ -621,6 +621,18 @@ class fightOddsIOScraper(MMAScraper):
                             ".MuiButtonBase-root.MuiButton-root.MuiButton-contained"
                         )
 
+                        def should_click_button(button_locator):
+                            try:
+                                label_locator = button_locator.locator(".MuiButton-label")
+                                label_locator.first.wait_for(state="attached", timeout=3000)
+                                # Open state shows an X icon SVG; closed state is usually numeric text.
+                                if label_locator.locator("svg").count() > 0:
+                                    return False
+                                label_text = label_locator.inner_text(timeout=3000).strip()
+                                return bool(re.search(r"\d", label_text))
+                            except Exception:
+                                return False
+
                         def click_with_fallback(button_locator, button_idx):
                             # Escalate click strategies to survive partial anti-bot throttling.
                             strategies = (
@@ -654,7 +666,10 @@ class fightOddsIOScraper(MMAScraper):
                         if count > 0:
                             buttons.first.wait_for(state="visible", timeout=10000)
                             for i in range(count):
-                                clicked = click_with_fallback(buttons.nth(i), i)
+                                button = buttons.nth(i)
+                                if not should_click_button(button):
+                                    continue
+                                clicked = click_with_fallback(button, i)
                                 if not clicked:
                                     logger.warning(
                                         "Skipping stuck button index=%s on %s (%s)",
