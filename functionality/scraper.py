@@ -608,6 +608,7 @@ class fightOddsIOScraper(MMAScraper):
                     context = browser.new_context(proxy=proxy_dict)
                     page = context.new_page()
                     page.set_default_navigation_timeout(60000)
+                    page.set_default_timeout(15000)
                     page.route("**/*", block_heavy_resources)
                     try:
                         page.goto(
@@ -619,20 +620,49 @@ class fightOddsIOScraper(MMAScraper):
                         buttons = page.locator(
                             ".MuiButtonBase-root.MuiButton-root.MuiButton-contained"
                         )
+
+                        def click_with_fallback(button_locator, button_idx):
+                            # Escalate click strategies to survive partial anti-bot throttling.
+                            strategies = (
+                                ("standard", lambda: button_locator.click(timeout=5000)),
+                                ("hover_then_click", lambda: (button_locator.hover(timeout=4000), button_locator.click(timeout=5000))),
+                                ("force_click", lambda: button_locator.click(timeout=5000, force=True)),
+                                (
+                                    "js_click",
+                                    lambda: page.evaluate(
+                                        "(el) => { el.scrollIntoView({block: 'center'}); el.click(); }",
+                                        button_locator.element_handle(timeout=4000),
+                                    ),
+                                ),
+                            )
+                            for strategy_name, strategy in strategies:
+                                try:
+                                    strategy()
+                                    page.wait_for_timeout(random.randint(300, 1200))
+                                    return True
+                                except Exception as strategy_error:
+                                    logger.warning(
+                                        "Button click retry index=%s strategy=%s on %s failed (%s)",
+                                        button_idx,
+                                        strategy_name,
+                                        label,
+                                        strategy_error,
+                                    )
+                            return False
+
                         count = buttons.count()
                         if count > 0:
                             buttons.first.wait_for(state="visible", timeout=10000)
                             for i in range(count):
-                                try:
-                                    buttons.nth(i).click(timeout=6000)
-                                    time.sleep(random.uniform(0.2, 1.2))
-                                except Exception as click_error:
+                                clicked = click_with_fallback(buttons.nth(i), i)
+                                if not clicked:
                                     logger.warning(
                                         "Skipping stuck button index=%s on %s (%s)",
                                         i,
                                         label,
-                                        click_error,
+                                        "all click strategies failed",
                                     )
+                                time.sleep(random.uniform(0.4, 1.4))
                         html_content = page.content()
                         p_soup = BeautifulSoup(html_content, "html.parser")
                         p_table = p_soup.find("table")
@@ -700,7 +730,7 @@ class fightOddsIOScraper(MMAScraper):
 
             if table is None:
                 logger.warning(
-                    "Skipping %s: no <table> in page after datacenter, backup datacenter, and residential if tried",
+                    "Skipping %s: no <table> in page after datacenter and residential attempts",
                     url,
                 )
                 return
