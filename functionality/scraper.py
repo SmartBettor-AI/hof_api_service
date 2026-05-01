@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import uuid
 import redis
+import argparse
 from sqlalchemy import desc, func, select, text
 from prize_picks_api_caller import PrizePicksApiCaller
 from underdog_api_caller import UnderdogApiCaller
@@ -663,24 +664,47 @@ class fightOddsIOScraper(MMAScraper):
                             return False
 
                         count = buttons.count()
+                        eligible_buttons = 0
+                        successful_clicks = 0
+                        failed_clicks = 0
                         if count > 0:
                             buttons.first.wait_for(state="visible", timeout=10000)
                             for i in range(count):
                                 button = buttons.nth(i)
                                 if not should_click_button(button):
                                     continue
+                                eligible_buttons += 1
                                 clicked = click_with_fallback(button, i)
                                 if not clicked:
+                                    failed_clicks += 1
                                     logger.warning(
                                         "Skipping stuck button index=%s on %s (%s)",
                                         i,
                                         label,
                                         "all click strategies failed",
                                     )
+                                else:
+                                    successful_clicks += 1
                                 time.sleep(random.uniform(0.4, 1.4))
+                        logger.info(
+                            "%s expansion summary for %s: total_buttons=%s eligible_buttons=%s successful_clicks=%s failed_clicks=%s",
+                            label.capitalize(),
+                            url,
+                            count,
+                            eligible_buttons,
+                            successful_clicks,
+                            failed_clicks,
+                        )
                         html_content = page.content()
                         p_soup = BeautifulSoup(html_content, "html.parser")
                         p_table = p_soup.find("table")
+                        table_rows_count = len(p_table.find_all("tr")) if p_table else 0
+                        logger.info(
+                            "%s table row count after expansion for %s: %s",
+                            label.capitalize(),
+                            url,
+                            table_rows_count,
+                        )
                         logger.info(
                             "%s proxy finished for %s (found <table>: %s)",
                             label.capitalize(),
@@ -1807,6 +1831,13 @@ def _overnight_quiet_window_et():
 scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
 fightOddsIO = fightOddsIOScraper('https://fightodds.io/')
 i = 0
+parser = argparse.ArgumentParser(description="Run HOF scraper")
+parser.add_argument(
+    "--run-once",
+    action="store_true",
+    help="Run one scrape cycle and exit",
+)
+args = parser.parse_args()
 logger.info("HOF scraper started")
 try:
     startup_webhook_url = os.environ.get("FIGHTODDS_SLACK_WEBHOOK_URL", "").strip()
@@ -1858,6 +1889,9 @@ while True:
     except Exception as e:  # Catch all for any other exceptions
         logger.error(f"An unexpected error occurred: {e}")
     finally:
+        if args.run_once:
+            logger.info("Run-once mode enabled: exiting after one cycle")
+            break
         if _overnight_quiet_window_et():
             logger.info(
                 "Mon–Thu 2–10 AM ET quiet window: sleeping 60 minutes before next run"
