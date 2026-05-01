@@ -1762,6 +1762,17 @@ def _overnight_quiet_window_et():
 scraper = BestFightOddsScraper('https://www.bestfightodds.com/')
 fightOddsIO = fightOddsIOScraper('https://fightodds.io/')
 i = 0
+logger.info("HOF scraper started")
+try:
+    startup_webhook_url = os.environ.get("FIGHTODDS_SLACK_WEBHOOK_URL", "").strip()
+    if startup_webhook_url:
+        requests.post(
+            startup_webhook_url,
+            json={"text": "HOF scraper started"},
+            timeout=8,
+        )
+except Exception as startup_slack_error:
+    logger.warning("Failed to send startup Slack message: %s", startup_slack_error)
 while True:
     try: 
         i += 1
