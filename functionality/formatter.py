@@ -35,13 +35,14 @@ class Formatter:
         with self.db_manager.get_engine().connect() as conn:
             odds_api_team_names_to_sports_reference_df = pd.read_sql(query, conn)
 
-        # Dict keyed by odds_api_team_name (unidecoded) -> team_name for name matching
+        # Dict keyed by team_name/HOF name (unidecoded) -> odds_api_team_name for name matching
         mapping = {}
         for _, row in odds_api_team_names_to_sports_reference_df.iterrows():
-            key = unidecode(str(row['odds_api_team_name']).strip()) if pd.notnull(row['odds_api_team_name']) else ''
-            val = unidecode(str(row['team_name']).strip()) if pd.notnull(row['team_name']) else ''
+            key = unidecode(str(row['team_name']).strip()) if pd.notnull(row['team_name']) else ''
+            val = unidecode(str(row['odds_api_team_name']).strip()) if pd.notnull(row['odds_api_team_name']) else ''
             mapping[key] = val
-        mapping['Paulo Costa'] = 'Paulo Henrique Costa'
+        mapping['Paulo Henrique Costa'] = 'Paulo Costa'
+        mapping['Youssef Zalaal'] = 'Youssef Zalal'
         return mapping
     
     def _build_odds_api_game_id_map(self):
