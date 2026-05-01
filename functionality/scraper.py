@@ -479,7 +479,7 @@ class fightOddsIOScraper(MMAScraper):
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
-                    headless=True,
+                    headless=False,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
                 # Primary datacenter (FIGHTODDS_PROXY_*), backup datacenter (FIGHTODDS_PROXY_BACKUP_*),
@@ -507,23 +507,94 @@ class fightOddsIOScraper(MMAScraper):
                         "FIGHTODDS_PROXY_BACKUP_PASSWORD", "a6a291d171"
                     ),
                 }
+                tertiary_datacenter_proxy = {
+                    "server": os.environ.get(
+                        "FIGHTODDS_PROXY_TERTIARY_SERVER",
+                        "http://45.145.99.219:12323",
+                    ),
+                    "username": os.environ.get(
+                        "FIGHTODDS_PROXY_TERTIARY_USER", "14a6b8f3bd5af"
+                    ),
+                    "password": os.environ.get(
+                        "FIGHTODDS_PROXY_TERTIARY_PASSWORD", "111aa51c48"
+                    ),
+                }
                 residential_server = os.environ.get(
                     "FIGHTODDS_RESIDENTIAL_PROXY_SERVER",
                     "http://geo.iproyal.com:12321",
                 )
-                residential_proxy = None
-                if residential_server:
-                    residential_proxy = {
-                        "server": residential_server,
-                        "username": os.environ.get(
-                            "FIGHTODDS_RESIDENTIAL_PROXY_USER",
-                            "qyM9d25gbxsra2UP",
-                        ),
-                        "password": os.environ.get(
-                            "FIGHTODDS_RESIDENTIAL_PROXY_PASSWORD",
-                            "e5ChXHYHhTTdC7Hu_streaming-1",
-                        ),
-                    }
+                residential_proxy_username = os.environ.get(
+                    "FIGHTODDS_RESIDENTIAL_PROXY_USER",
+                    "qyM9d25gbxsra2UP",
+                )
+                residential_proxy_password = os.environ.get(
+                    "FIGHTODDS_RESIDENTIAL_PROXY_PASSWORD",
+                    "e5ChXHYHhTTdC7Hu_streaming-1",
+                )
+                residential_server_list = [
+                    s.strip()
+                    for s in os.environ.get(
+                        "FIGHTODDS_RESIDENTIAL_PROXY_SERVER_LIST", ""
+                    ).split(",")
+                    if s.strip()
+                ]
+                if residential_server and residential_server not in residential_server_list:
+                    residential_server_list.append(residential_server)
+                residential_country_pool = [
+                    c.strip().upper()
+                    for c in os.environ.get(
+                        "FIGHTODDS_RESIDENTIAL_PROXY_COUNTRIES", ""
+                    ).split(",")
+                    if c.strip()
+                ]
+                residential_attempts = int(
+                    os.environ.get("FIGHTODDS_RESIDENTIAL_PROXY_ATTEMPTS", "4")
+                )
+                residential_attempts = max(residential_attempts, 1)
+
+                def build_residential_proxies():
+                    # Supports optional string templates, e.g.:
+                    # USER_TEMPLATE="user-country-{country}-session-{session}"
+                    # PASS_TEMPLATE="pass_streaming-{session}"
+                    proxies = []
+                    if not residential_server_list:
+                        return proxies
+                    user_template = os.environ.get(
+                        "FIGHTODDS_RESIDENTIAL_PROXY_USER_TEMPLATE"
+                    )
+                    pass_template = os.environ.get(
+                        "FIGHTODDS_RESIDENTIAL_PROXY_PASSWORD_TEMPLATE"
+                    )
+                    for _ in range(residential_attempts):
+                        chosen_server = random.choice(residential_server_list)
+                        session_id = f"{int(time.time())}{random.randint(1000, 9999)}"
+                        chosen_country = (
+                            random.choice(residential_country_pool)
+                            if residential_country_pool
+                            else ""
+                        )
+                        username = residential_proxy_username
+                        password = residential_proxy_password
+                        if user_template:
+                            username = user_template.format(
+                                session=session_id,
+                                country=chosen_country,
+                            )
+                        if pass_template:
+                            password = pass_template.format(
+                                session=session_id,
+                                country=chosen_country,
+                            )
+                        proxies.append(
+                            {
+                                "server": chosen_server,
+                                "username": username,
+                                "password": password,
+                                "_session_id": session_id,
+                                "_country": chosen_country or "default",
+                            }
+                        )
+                    return proxies
 
                 def block_heavy_resources(route):
                     if route.request.resource_type in ("image", "font"):
@@ -533,10 +604,12 @@ class fightOddsIOScraper(MMAScraper):
 
                 def fetch_with_proxy(proxy_dict, label):
                     logger.info(
-                        "Trying %s proxy for %s (server=%s)",
+                        "Trying %s proxy for %s (server=%s session=%s country=%s)",
                         label,
                         url,
                         proxy_dict.get("server", ""),
+                        proxy_dict.get("_session_id", "n/a"),
+                        proxy_dict.get("_country", "default"),
                     )
                     context = browser.new_context(proxy=proxy_dict)
                     page = context.new_page()
@@ -556,8 +629,16 @@ class fightOddsIOScraper(MMAScraper):
                         if count > 0:
                             buttons.first.wait_for(state="visible", timeout=10000)
                             for i in range(count):
-                                buttons.nth(i).click()
-                                time.sleep(1)
+                                try:
+                                    buttons.nth(i).click(timeout=6000)
+                                    time.sleep(random.uniform(0.2, 1.2))
+                                except Exception as click_error:
+                                    logger.warning(
+                                        "Skipping stuck button index=%s on %s (%s)",
+                                        i,
+                                        label,
+                                        click_error,
+                                    )
                         html_content = page.content()
                         p_soup = BeautifulSoup(html_content, "html.parser")
                         p_table = p_soup.find("table")
@@ -575,6 +656,7 @@ class fightOddsIOScraper(MMAScraper):
                 for proxy_dict, label in (
                     (datacenter_proxy, "datacenter"),
                     (backup_datacenter_proxy, "datacenter backup"),
+                    (tertiary_datacenter_proxy, "datacenter tertiary"),
                 ):
                     try:
                         soup, table = fetch_with_proxy(proxy_dict, label)
@@ -593,22 +675,34 @@ class fightOddsIOScraper(MMAScraper):
                             e,
                         )
 
-                if table is None and residential_proxy:
+                residential_proxies = build_residential_proxies()
+                if table is None and residential_proxies:
                     logger.warning(
-                        "Datacenter proxies exhausted for %s; trying residential proxy",
+                        "Datacenter proxies exhausted for %s; trying residential proxies",
                         url,
                     )
-                    try:
-                        soup, table = fetch_with_proxy(
-                            residential_proxy, "residential"
-                        )
-                    except Exception as e2:
-                        logger.warning(
-                            "Residential proxy failed for %s: %s",
-                            url,
-                            e2,
-                        )
-                        return
+                    for residential_idx, residential_proxy in enumerate(
+                        residential_proxies, start=1
+                    ):
+                        try:
+                            soup, table = fetch_with_proxy(
+                                residential_proxy,
+                                f"residential-{residential_idx}",
+                            )
+                            if table is not None:
+                                break
+                            logger.warning(
+                                "Residential attempt %s returned no <table> for %s",
+                                residential_idx,
+                                url,
+                            )
+                        except Exception as e2:
+                            logger.warning(
+                                "Residential attempt %s failed for %s: %s",
+                                residential_idx,
+                                url,
+                                e2,
+                            )
 
             if table is None:
                 logger.warning(
