@@ -12,15 +12,102 @@ from formatter import Formatter
 import pandas as pd
 import jsonpickle
 import logging
+import os
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+FIGHTODDS_SCRAPER_USER_AGENT = os.environ.get(
+    "FIGHTODDS_SCRAPER_USER_AGENT",
+    (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+)
+OXYLABS_DDC_HOST = "ddc.oxylabs.io"
+OXYLABS_PROXY_CHECK_URL = "https://ip.oxylabs.io/location"
+
+
+class ProxyAuthenticationError(Exception):
+    """Proxy endpoint rejected credentials (HTTP 407)."""
+
+
+def build_oxylabs_datacenter_proxy_config(attempt=1):
+    """
+    Oxylabs dedicated datacenter rotating proxy (ddc.oxylabs.io:8000).
+    Dashboard: My Products -> Dedicated Datacenter Proxies -> Integration.
+    """
+    username = os.environ.get("FIGHTODDS_OXYLABS_DDC_USER", "oddible_8wBml").strip()
+    password = os.environ.get("FIGHTODDS_OXYLABS_DDC_PASSWORD", "Oddible_1234").strip()
+    if not username or not password:
+        return None
+
+    host = os.environ.get("FIGHTODDS_OXYLABS_DDC_HOST", OXYLABS_DDC_HOST).strip()
+    server = os.environ.get("FIGHTODDS_OXYLABS_DDC_SERVER", "").strip()
+    if not server:
+        # Port 8000 rotates a random IP from your list on each connection.
+        port = os.environ.get("FIGHTODDS_OXYLABS_DDC_PORT", "8000").strip()
+        server = f"http://{host}:{port}"
+
+    if username.startswith("user-"):
+        auth_username = username
+    else:
+        country = os.environ.get("FIGHTODDS_OXYLABS_DDC_COUNTRY", "US").strip().upper()
+        if country:
+            auth_username = f"user-{username}-country-{country}"
+        else:
+            auth_username = f"user-{username}"
+
+    return {
+        "server": server,
+        "username": auth_username,
+        "password": password,
+        "_country": os.environ.get("FIGHTODDS_OXYLABS_DDC_COUNTRY", "US"),
+        "_attempt": attempt,
+    }
+
+
+def validate_oxylabs_proxy_config(proxy_dict, browser):
+    context = browser.new_context(
+        proxy=proxy_dict,
+        user_agent=FIGHTODDS_SCRAPER_USER_AGENT,
+    )
+    page = context.new_page()
+    try:
+        response = page.goto(
+            OXYLABS_PROXY_CHECK_URL,
+            wait_until="commit",
+            timeout=20000,
+        )
+        status = response.status if response else None
+        if status == 407:
+            raise ProxyAuthenticationError(
+                "Oxylabs proxy authentication failed (HTTP 407). "
+                "Check FIGHTODDS_OXYLABS_DDC_USER and FIGHTODDS_OXYLABS_DDC_PASSWORD. "
+                f"server={proxy_dict.get('server')} username={proxy_dict.get('username')}"
+            )
+        if status is not None and status >= 400:
+            raise RuntimeError(
+                f"Oxylabs proxy check failed with HTTP {status} "
+                f"for {OXYLABS_PROXY_CHECK_URL}"
+            )
+        logger.info(
+            "Oxylabs datacenter proxy validated via %s (server=%s username=%s)",
+            OXYLABS_PROXY_CHECK_URL,
+            proxy_dict.get("server"),
+            proxy_dict.get("username"),
+        )
+    finally:
+        context.close()
+
+
 import re
 import json
 import numpy as np
 import time
 import random
 import http.client
-import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import uuid
@@ -480,10 +567,13 @@ class fightOddsIOScraper(MMAScraper):
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
-                    headless=True,
+                    headless=False,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
-                # Datacenter proxies first, then residential rotation.
+                oxylabs_attempts = int(
+                    os.environ.get("FIGHTODDS_OXYLABS_DDC_ATTEMPTS", "3")
+                )
+                oxylabs_attempts = max(oxylabs_attempts, 1)
                 quaternary_datacenter_proxy = {
                     "server": os.environ.get(
                         "FIGHTODDS_PROXY_QUATERNARY_SERVER",
@@ -618,17 +708,32 @@ class fightOddsIOScraper(MMAScraper):
                         proxy_dict.get("_session_id", "n/a"),
                         proxy_dict.get("_country", "default"),
                     )
-                    context = browser.new_context(proxy=proxy_dict)
+                    context = browser.new_context(
+                        proxy=proxy_dict,
+                        user_agent=FIGHTODDS_SCRAPER_USER_AGENT,
+                        viewport={"width": 1920, "height": 1080},
+                        locale="en-US",
+                    )
                     page = context.new_page()
                     page.set_default_navigation_timeout(60000)
                     page.set_default_timeout(15000)
                     page.route("**/*", block_heavy_resources)
                     try:
-                        page.goto(
+                        response = page.goto(
                             url,
                             wait_until="domcontentloaded",
                             timeout=60000,
                         )
+                        status = response.status if response else None
+                        if status == 407:
+                            raise ProxyAuthenticationError(
+                                f"Proxy authentication failed (407) for {label} "
+                                f"on {proxy_dict.get('server')}"
+                            )
+                        if status is not None and status >= 400:
+                            raise RuntimeError(
+                                f"HTTP {status} loading {url} via {label}"
+                            )
                         page.wait_for_selector("table", timeout=60000)
                         buttons = page.locator(
                             ".MuiButtonBase-root.MuiButton-root.MuiButton-contained"
@@ -728,10 +833,56 @@ class fightOddsIOScraper(MMAScraper):
                         context.close()
 
                 soup, table = None, None
+                oxylabs_proxy_checked = False
+                for attempt in range(1, oxylabs_attempts + 1):
+                    oxylabs_proxy = build_oxylabs_datacenter_proxy_config(attempt)
+                    if oxylabs_proxy is None:
+                        logger.error(
+                            "Oxylabs datacenter proxy is not configured. Set "
+                            "FIGHTODDS_OXYLABS_DDC_USER and FIGHTODDS_OXYLABS_DDC_PASSWORD."
+                        )
+                        break
+                    if not oxylabs_proxy_checked:
+                        try:
+                            validate_oxylabs_proxy_config(oxylabs_proxy, browser)
+                            oxylabs_proxy_checked = True
+                        except ProxyAuthenticationError as auth_error:
+                            logger.error("%s", auth_error)
+                            break
+                        except Exception as check_error:
+                            logger.warning(
+                                "Oxylabs proxy pre-check failed: %s; continuing with scrape attempts",
+                                check_error,
+                            )
+                    try:
+                        soup, table = fetch_with_proxy(
+                            oxylabs_proxy,
+                            f"oxylabs-datacenter-{attempt}",
+                        )
+                        if table is not None:
+                            break
+                        logger.warning(
+                            "Oxylabs attempt %s returned HTML with no <table> for %s; trying next attempt or fallback",
+                            attempt,
+                            url,
+                        )
+                    except ProxyAuthenticationError as auth_error:
+                        logger.error("%s", auth_error)
+                        break
+                    except Exception as e:
+                        logger.warning(
+                            "Oxylabs attempt %s failed for %s: %s; trying next attempt or fallback",
+                            attempt,
+                            url,
+                            e,
+                        )
+
                 for proxy_dict, label in (
                     (quaternary_datacenter_proxy, "datacenter quaternary"),
                     (tertiary_datacenter_proxy, "datacenter tertiary"),
                 ):
+                    if table is not None:
+                        break
                     try:
                         soup, table = fetch_with_proxy(proxy_dict, label)
                         if table is not None:
@@ -754,7 +905,7 @@ class fightOddsIOScraper(MMAScraper):
                 residential_proxies = build_residential_proxies()
                 if table is None and residential_proxies:
                     logger.warning(
-                        "Datacenter proxies exhausted for %s; trying residential proxies",
+                        "Oxylabs and datacenter proxies exhausted for %s; trying IPRoyal residential proxies",
                         url,
                     )
                     for residential_idx, residential_proxy in enumerate(
@@ -782,7 +933,7 @@ class fightOddsIOScraper(MMAScraper):
 
             if table is None:
                 logger.warning(
-                    "Skipping %s: no <table> in page after datacenter and residential attempts",
+                    "Skipping %s: no <table> in page after oxylabs, datacenter, and residential attempts",
                     url,
                 )
                 return
