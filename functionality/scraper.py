@@ -483,7 +483,19 @@ class fightOddsIOScraper(MMAScraper):
                     headless=True,
                     args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
                 )
-                # Datacenter first (tertiary credentials), then residential rotation.
+                # Datacenter proxies first, then residential rotation.
+                quaternary_datacenter_proxy = {
+                    "server": os.environ.get(
+                        "FIGHTODDS_PROXY_QUATERNARY_SERVER",
+                        "http://141.11.126.109:12323",
+                    ),
+                    "username": os.environ.get(
+                        "FIGHTODDS_PROXY_QUATERNARY_USER", "14a94eb227359"
+                    ),
+                    "password": os.environ.get(
+                        "FIGHTODDS_PROXY_QUATERNARY_PASSWORD", "b66577c396"
+                    ),
+                }
                 tertiary_datacenter_proxy = {
                     "server": os.environ.get(
                         "FIGHTODDS_PROXY_TERTIARY_SERVER",
@@ -717,6 +729,7 @@ class fightOddsIOScraper(MMAScraper):
 
                 soup, table = None, None
                 for proxy_dict, label in (
+                    (quaternary_datacenter_proxy, "datacenter quaternary"),
                     (tertiary_datacenter_proxy, "datacenter tertiary"),
                 ):
                     try:
