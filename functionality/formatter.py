@@ -43,7 +43,42 @@ class Formatter:
             mapping[key] = val
         mapping['Paulo Henrique Costa'] = 'Paulo Costa'
         mapping['Youssef Zalaal'] = 'Youssef Zalal'
+        mapping['Qileng Aori'] = 'Aori Qileng'
         return mapping
+
+    def _name_variants(self, name):
+        """All spellings/orderings to try against odds_pipeline.bet_info team names."""
+        name = unidecode(str(name).strip().replace('.', '')) if pd.notnull(name) else ''
+        if not name:
+            return []
+        variants = []
+        seen = set()
+
+        def add(n):
+            n = str(n).strip()
+            if n and n not in seen:
+                seen.add(n)
+                variants.append(n)
+
+        add(name)
+        converted = self._name_conversion_map.get(name)
+        if converted:
+            add(converted)
+        parts = name.split()
+        if len(parts) == 2:
+            add(f"{parts[1]} {parts[0]}")
+        return variants
+
+    def _lookup_odds_api_game(self, home, away):
+        for h in self._name_variants(home):
+            for a in self._name_variants(away):
+                result = self._odds_api_game_id_map.get((h, a))
+                if result:
+                    return result
+                result = self._odds_api_game_id_map.get((a, h))
+                if result:
+                    return result
+        return (None, None)
     
     def _build_odds_api_game_id_map(self):
         """Query odds_pipeline.bet_info for MMA and build (home_team, away_team) -> (game_id, commence_time) mapping."""
@@ -74,31 +109,19 @@ class Formatter:
 
         def _lookup(row):
             home, away = row['home_team'], row['away_team']
-            home, away = str(home).strip().replace('.', ''), str(away).strip().replace('.', '')
-            # First try (home, away) and (away, home) in main mapping
-            result = self._odds_api_game_id_map.get((home, away)) or self._odds_api_game_id_map.get((away, home))
-            if result:
+            result = self._lookup_odds_api_game(home, away)
+            if result[0]:
                 return result
-
-            # Only convert the name that's not found in the odds map
-            if home in self._names_in_odds_map and away not in self._names_in_odds_map:
-                new_away = self._name_conversion_map.get(away, away)
-                result = self._odds_api_game_id_map.get((home, new_away)) or self._odds_api_game_id_map.get((new_away, home))
-            elif away in self._names_in_odds_map and home not in self._names_in_odds_map:
-                new_home = self._name_conversion_map.get(home, home)
-                result = self._odds_api_game_id_map.get((new_home, away)) or self._odds_api_game_id_map.get((away, new_home))
-            else:
-                result = None
-
-            if result:
-                return result
-
-            # Last fallback, cannot find
             return (None, None)
 
         lookup_results = self.df.apply(_lookup, axis=1)
         self.df['odds_api_game_id'] = [r[0] for r in lookup_results]
         self.df['game_id'] = self.df['odds_api_game_id']
+        if 'db_game_id' in self.df.columns:
+            missing_odds_api = self.df['game_id'].isna()
+            self.df.loc[missing_odds_api, 'game_id'] = self.df.loc[
+                missing_odds_api, 'db_game_id'
+            ]
         self.df['commence_time'] = [r[1] for r in lookup_results]
         return self.df
 
